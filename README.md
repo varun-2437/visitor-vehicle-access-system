@@ -4,7 +4,24 @@ Camera-based visitor vehicle access system with automatic plate recognition and 
 
 ## Setup
 
-Placeholder for setup and installation instructions.
+1. **Activate the virtual environment**:
+   - On macOS/Linux (Bash/Zsh):
+     ```bash
+     source venv/bin/activate
+     ```
+   - On Windows (Command Prompt):
+     ```cmd
+     venv\Scripts\activate.bat
+     ```
+   - On Windows (PowerShell):
+     ```powershell
+     venv\Scripts\Activate.ps1
+     ```
+
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Usage
 
