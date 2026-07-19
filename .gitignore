@@ -63,5 +63,14 @@ Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.swp
+
+# Weights & Models
+*.weights
+*.pth
+*.pt
+
+# Media & Videos
+*.mp4
+*.avi
+*.gif
