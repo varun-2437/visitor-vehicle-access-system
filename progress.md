@@ -1,6 +1,6 @@
 # 📋 Project Progress — Smart Visitor Vehicle Access System
 
-> **Last Updated:** 2026-07-19  
+> **Last Updated:** 2026-07-20  
 > **Project:** 23CCE381 — Open Lab I (Semester 5, CCE/ECE)  
 > **Repository:** https://github.com/varun-2437/visitor-vehicle-access-system  
 > **Current Branch:** `testing` (all experimental work), `main` (clean)  
@@ -297,6 +297,8 @@ The repo was written for NumPy 1.x. The following fixes were applied for NumPy 2
 - [x] Identified best OCR strategy: **Multi-engine consensus** (LPRNet + Tesseract + EasyOCR)
 - [x] NumPy 2.0 compatibility patches applied to Indian_LPR
 - [x] All test results documented with annotated output images
+- [x] Unified benchmark scripts created (`scripts/test_all_models.py` + Windows variant)
+- [x] Tech stack finalized (see below)
 
 ### 🔲 NOT YET STARTED
 - [ ] **Production ANPR module** — Clean module combining FCOS + multi-OCR with:
@@ -304,12 +306,64 @@ The repo was written for NumPy 1.x. The following fixes were applied for NumPy 2
   - Regex-based plate cleaning (removes brackets, symbols)
   - Consensus voting across OCR engines
   - Indian plate format validation
-- [ ] **Backend API** (Flask) — REST endpoints for plate submission, approval workflow
-- [ ] **Database** (SQLAlchemy) — Vehicle logs, resident records, approval history
-- [ ] **Frontend** — Digital approval interface (QR code, approve/deny buttons)
-- [ ] **Notification system** — Push/SMS/email to resident when visitor arrives
+- [ ] **Backend API** (FastAPI) — REST endpoints for plate submission, approval workflow, WebSocket notifications
+- [ ] **Database** (SQLAlchemy + SQLite) — Vehicle logs, resident records, approval history, photo references
+- [ ] **Frontend** (React + Vite) — Multi-panel UI: Security Guard, Resident, Admin
+- [ ] **Real-time Notifications** — WebSockets (FastAPI built-in) for instant resident alerts
 - [ ] **Real-time camera integration** — Webcam/IP camera feed processing
 - [ ] **WiFi CSI module** — Device-free occupancy detection (secondary project idea)
+
+---
+
+## 🏗️ Chosen Tech Stack
+
+> Finalized on 2026-07-20 after evaluating multiple options.
+
+| Layer | Technology | Rationale |
+|-------|-----------|----------|
+| **Backend API** | **FastAPI** (Python) | Async, auto-generates Swagger docs at `/docs`, WebSocket support built-in, native Python so PyTorch models are direct function calls |
+| **Database** | **SQLite** (dev) → **PostgreSQL** (prod) | Zero-setup file-based DB. SQLAlchemy ORM works with both — switch later if needed |
+| **Photo Storage** | **Local filesystem** + DB path references | Images saved to `uploads/` folder, file path stored in DB. No cloud dependency |
+| **Frontend** | **React + Vite** | Component-based (reusable across 3 user panels), blazing fast dev server (<200ms startup) |
+| **Real-time** | **WebSockets** (FastAPI built-in) | Camera reads plate → instant push to resident's browser. No polling |
+
+### Frontend Panels
+| Panel | Route | Purpose |
+|-------|-------|---------| 
+| Security Guard | `/guard` | Live camera feed, plate results, manual override |
+| Resident | `/resident` | Notifications, approve/deny visitor, vehicle history |
+| Admin | `/admin` | All logs, analytics, user/resident management |
+
+### Why FastAPI over Flask?
+- **Async** — handles concurrent camera feeds without blocking
+- **Auto API docs** — Swagger UI auto-generated at `/docs` (great for demos)
+- **WebSockets built-in** — no need for Flask-SocketIO extension
+- **Pydantic validation** — catches invalid data before it hits the DB
+- **Almost identical syntax** to Flask — minimal learning curve
+
+### Rejected Alternatives
+| Technology | Why Rejected |
+|-----------|-------------|
+| Django | Too heavy; built-in admin panel unnecessary; harder to integrate raw PyTorch |
+| Node.js backend | ANPR models are Python — would need subprocess calls or a separate microservice |
+| Next.js | SSR is unnecessary for a dashboard app; adds complexity over Vite |
+| MongoDB | Data is highly relational (vehicles → residents → approvals); SQL is the right fit |
+| Cloud storage (S3) | Overkill for a college project; local filesystem is sufficient |
+
+### Target Software Architecture
+```
+┌─────────────────┐     ┌──────────────────────────────────────┐
+│  React Frontend │◄───►│         FastAPI Backend               │
+│  (Vite)         │     │                                      │
+│  ├─ /guard      │ WS  │  ├─ /api/detect    ← runs FCOS+OCR  │
+│  ├─ /resident   │◄───►│  ├─ /api/vehicles  ← CRUD records   │
+│  └─ /admin      │     │  ├─ /api/approve   ← resident flow  │
+│                 │     │  └─ /ws/notify     ← WebSocket push  │
+└─────────────────┘     │                                      │
+                        │  SQLAlchemy ORM ──► SQLite / Postgres │
+                        │  uploads/ folder ──► plate images     │
+                        └──────────────────────────────────────┘
+```
 
 ---
 
@@ -387,6 +441,18 @@ The repo was written for NumPy 1.x. The following fixes were applied for NumPy 2
 - Updated `.gitignore` to ignore `.pth`, `.pt`, `.weights`, `.mp4`, `.avi`, `.gif`
 - Removed nested `.git` from `temp/Indian_LPR/`
 - Pushed `testing` branch to GitHub
+
+### 2026-07-19 — Unified Benchmark Scripts
+- Created `scripts/test_all_models.py` — runs all 6 ANPR pipelines on test images, outputs tabular comparison
+- Created `scripts/test_all_models_windows.py` — Windows-optimized variant with CUDA GPU support and Tesseract path fix
+- Committed and pushed both to `testing` branch
+
+### 2026-07-20 — Tech Stack Decision
+- Evaluated Django, Flask, FastAPI, Node.js for backend → chose **FastAPI**
+- Evaluated Next.js, React+Vite, plain HTML for frontend → chose **React + Vite**
+- Evaluated MongoDB, PostgreSQL, SQLite for database → chose **SQLite** (dev) with SQLAlchemy ORM
+- Decided on local filesystem for photo storage with DB path references
+- Documented full architecture, panel routes, and rejected alternatives in progress.md
 
 ---
 
