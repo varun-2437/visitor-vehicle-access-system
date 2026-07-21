@@ -69,6 +69,9 @@ Thumbs.db
 *.weights
 *.pth
 *.pt
+!temp/Indian_LPR/weights/best_od.pth
+!temp/Indian_LPR/weights/best_lprnet.pth
+!temp/Indian_LPR/weights/best_semantic.pth
 
 # Media & Videos
 *.mp4
