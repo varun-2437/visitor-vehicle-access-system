@@ -1,9 +1,12 @@
 import os
 import sys
+# pyrefly: ignore [missing-import]
 import cv2
+# pyrefly: ignore [missing-import]
 import torch
 import numpy as np
 from pathlib import Path
+# pyrefly: ignore [missing-import]
 import pytesseract
 import warnings
 

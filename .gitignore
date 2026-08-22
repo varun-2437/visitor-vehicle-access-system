@@ -77,3 +77,9 @@ Thumbs.db
 *.mp4
 *.avi
 *.gif
+
+# Runtime DB & Generated Images
+*.db
+backend/qr_codes/*.png
+!backend/qr_codes/.gitkeep
+
