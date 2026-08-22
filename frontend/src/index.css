@@ -72,10 +72,10 @@ body {
 .badge-admin { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
 .badge-resident { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
 .badge-guard { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.badge-approved { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-.badge-used { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+.badge-not_inside, .badge-approved, .badge-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.badge-in_campus, .badge-used { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+.badge-exited { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
 .badge-expired { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-.badge-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 .badge-entry { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
 .badge-exit { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 
@@ -347,7 +347,7 @@ body {
   border: 2px solid var(--border);
 }
 
-/* ─── Guard Scanner ─── */
+/* ─── Guard Scanner & QR Methods ─── */
 .scan-controls {
   display: flex;
   gap: 16px;
@@ -362,6 +362,63 @@ body {
   border-radius: var(--radius);
   overflow: hidden;
 }
+
+.qr-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+.qr-method-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.qr-method-card h4 {
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.method-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.file-input {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.paste-zone {
+  border: 2px dashed var(--primary);
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--primary-hover);
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s;
+}
+
+.paste-zone:focus, .paste-zone:hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+
 
 .manual-entry {
   border-top: 1px solid var(--border);

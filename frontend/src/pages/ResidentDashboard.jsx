@@ -41,9 +41,18 @@ export default function ResidentDashboard() {
     }
   };
 
-  const getStatusColor = (status) => {
-    const colors = { approved: "badge-approved", used: "badge-used", expired: "badge-expired", pending: "badge-pending" };
-    return colors[status] || "";
+  const renderStatusBadge = (status) => {
+    const map = {
+      not_inside: { label: "🟡 Pass Created (Not Inside)", badge: "badge-not_inside" },
+      approved: { label: "🟡 Pass Created (Not Inside)", badge: "badge-not_inside" },
+      pending: { label: "🟡 Pass Created (Not Inside)", badge: "badge-not_inside" },
+      in_campus: { label: "🟢 In Campus", badge: "badge-in_campus" },
+      used: { label: "🟢 In Campus", badge: "badge-in_campus" },
+      exited: { label: "🔵 Vehicle Exited Campus", badge: "badge-exited" },
+      expired: { label: "🔴 Pass Expired", badge: "badge-expired" },
+    };
+    const item = map[status] || { label: status.toUpperCase(), badge: "badge-pending" };
+    return <span className={`badge ${item.badge}`}>{item.label}</span>;
   };
 
   return (
@@ -104,7 +113,7 @@ export default function ResidentDashboard() {
         </div>
 
         <div className="panel">
-          <h3>My Visitor Passes</h3>
+          <h3>My Visitor Passes & Vehicle Status</h3>
           {passes.length === 0 ? (
             <p className="empty-state">No visitor passes yet. Click "+ New Pass" to create one.</p>
           ) : (
@@ -114,7 +123,7 @@ export default function ResidentDashboard() {
                   <th>Visitor</th>
                   <th>Vehicle</th>
                   <th>Purpose</th>
-                  <th>Status</th>
+                  <th>Vehicle Status Stage</th>
                   <th>Created</th>
                   <th>Expires</th>
                 </tr>
@@ -125,7 +134,7 @@ export default function ResidentDashboard() {
                     <td>{p.visitor_name}</td>
                     <td>{p.vehicle_number || "—"}</td>
                     <td>{p.purpose || "—"}</td>
-                    <td><span className={`badge ${getStatusColor(p.status)}`}>{p.status.toUpperCase()}</span></td>
+                    <td>{renderStatusBadge(p.status)}</td>
                     <td>{new Date(p.created_at).toLocaleString()}</td>
                     <td>{new Date(p.expires_at).toLocaleString()}</td>
                   </tr>

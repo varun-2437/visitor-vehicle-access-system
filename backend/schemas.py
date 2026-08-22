@@ -87,3 +87,13 @@ class AccessLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ─── Manual Vehicle Entry Schema (Guard Panel) ───
+class ManualVehicleEntryCreate(BaseModel):
+    visitor_name: str
+    vehicle_number: str
+    purpose: Optional[str] = "Walk-in / Gate Register"
+    flat_number: Optional[str] = None
+    action: str = "entry"
+

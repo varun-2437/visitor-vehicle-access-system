@@ -14,10 +14,14 @@ class UserRole(str, enum.Enum):
 
 
 class PassStatus(str, enum.Enum):
-    pending = "pending"
-    approved = "approved"
-    used = "used"
-    expired = "expired"
+    not_inside = "not_inside"  # Pass Created (Not Inside)
+    in_campus = "in_campus"    # Vehicle In Campus
+    exited = "exited"          # Vehicle Exited Campus
+    expired = "expired"        # Pass Expired
+    # Legacy aliases
+    approved = "not_inside"
+    used = "in_campus"
+
 
 
 class LogAction(str, enum.Enum):

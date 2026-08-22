@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
 from models import User, VisitorPass, AccessLog, PassStatus, LogAction
-from schemas import VisitorPassCreate, VisitorPassResponse, QRVerifyRequest, QRVerifyResponse
+from schemas import (
+    VisitorPassCreate,
+    VisitorPassResponse,
+    QRVerifyRequest,
+    QRVerifyResponse,
+    ManualVehicleEntryCreate,
+)
 from auth import get_current_user, require_role
 from config import QR_CODES_DIR
 
@@ -27,6 +33,7 @@ def generate_visitor_pass(
         vehicle_number=data.vehicle_number,
         purpose=data.purpose,
         resident_id=current_user.id,
+        status=PassStatus.not_inside,
         expires_at=expires_at,
     )
     db.add(visitor_pass)
@@ -68,11 +75,7 @@ def verify_qr_code(
         db.commit()
         return QRVerifyResponse(valid=False, message="This visitor pass has expired")
 
-    # Check if already used (for entry)
-    if visitor_pass.status == PassStatus.used and data.action == "entry":
-        return QRVerifyResponse(valid=False, message="This pass has already been used for entry")
-
-    # Valid — create access log
+    # Valid — create access log & update vehicle status
     log = AccessLog(
         visitor_pass_id=visitor_pass.id,
         scanned_by=current_user.id,
@@ -81,16 +84,19 @@ def verify_qr_code(
     db.add(log)
 
     if data.action == "entry":
-        visitor_pass.status = PassStatus.used
+        visitor_pass.status = PassStatus.in_campus
+    elif data.action == "exit":
+        visitor_pass.status = PassStatus.exited
 
     db.commit()
     db.refresh(visitor_pass)
 
     return QRVerifyResponse(
         valid=True,
-        message=f"✅ {data.action.upper()} recorded for {visitor_pass.visitor_name}",
+        message=f"✅ Vehicle {data.action.upper()} recorded for {visitor_pass.visitor_name}",
         visitor_pass=visitor_pass,
     )
+
 
 
 @router.get("/my-passes", response_model=List[VisitorPassResponse])
@@ -106,3 +112,82 @@ def get_my_passes(
         .all()
     )
     return passes
+
+
+@router.post("/manual-entry", response_model=QRVerifyResponse)
+def manual_vehicle_entry(
+    data: ManualVehicleEntryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin")),
+):
+    """Manual vehicle entry/exit registration by guards (without prior QR pass)."""
+    # Find host resident if flat number is provided
+    resident_id = current_user.id
+    if data.flat_number:
+        res = db.query(User).filter(User.flat_number == data.flat_number).first()
+        if res:
+            resident_id = res.id
+
+    # Create instant visitor pass
+    visitor_pass = VisitorPass(
+        visitor_name=data.visitor_name,
+        vehicle_number=data.vehicle_number,
+        purpose=data.purpose or "Manual Gate Register",
+        resident_id=resident_id,
+        status=PassStatus.in_campus if data.action == "entry" else PassStatus.exited,
+        expires_at=datetime.utcnow() + timedelta(hours=24),
+    )
+    db.add(visitor_pass)
+    db.commit()
+    db.refresh(visitor_pass)
+
+    # Create access log
+    log = AccessLog(
+        visitor_pass_id=visitor_pass.id,
+        scanned_by=current_user.id,
+        action=data.action,
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(visitor_pass)
+
+    return QRVerifyResponse(
+        valid=True,
+        message=f"✅ Manual {data.action.upper()} logged for Vehicle {data.vehicle_number.upper()}",
+        visitor_pass=visitor_pass,
+    )
+
+
+@router.get("/today-passes", response_model=List[VisitorPassResponse])
+def get_today_passes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin")),
+):
+    """List all visitor passes created today. Guards and admins only."""
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    passes = (
+        db.query(VisitorPass)
+        .filter(VisitorPass.created_at >= today_start)
+        .order_by(VisitorPass.created_at.desc())
+        .all()
+    )
+    return passes
+
+
+from schemas import AccessLogResponse
+
+@router.get("/today-logs", response_model=List[AccessLogResponse])
+def get_today_logs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin")),
+):
+    """List all vehicle entry and exit access logs recorded today. Guards and admins only."""
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    logs = (
+        db.query(AccessLog)
+        .filter(AccessLog.timestamp >= today_start)
+        .order_by(AccessLog.timestamp.desc())
+        .all()
+    )
+    return logs
+
