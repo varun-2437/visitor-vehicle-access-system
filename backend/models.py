@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Enum as SAEnum
 from sqlalchemy.orm import relationship
 from database import Base
 import enum
@@ -18,9 +18,11 @@ class PassStatus(str, enum.Enum):
     in_campus = "in_campus"    # Vehicle In Campus
     exited = "exited"          # Vehicle Exited Campus
     expired = "expired"        # Pass Expired
-    # Legacy aliases
-    approved = "not_inside"
-    used = "in_campus"
+    # Legacy DB values for backward compatibility
+    approved = "approved"
+    used = "used"
+    pending = "pending"
+
 
 
 
@@ -40,6 +42,8 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     role = Column(SAEnum(UserRole), nullable=False, default=UserRole.resident)
     flat_number = Column(String(20), nullable=True)  # Only for residents
+    is_approved = Column(Boolean, nullable=False, default=True)  # Legacy compatibility
+    approval_status = Column(String(20), nullable=False, default="approved")  # 'pending', 'approved', 'rejected'
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

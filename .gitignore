@@ -83,3 +83,18 @@ Thumbs.db
 backend/qr_codes/*.png
 !backend/qr_codes/.gitkeep
 
+# Developer Documentation, Tracking Logs & Checklists (Non-app files)
+QUERIES.txt
+progress.md
+TECH_STACK.md
+*Checklist*.md
+*checklist*.md
+*progress*.md
+*Progress*.md
+*stack*.md
+*Stack*.md
+*.log
+scratch/
+temp/
+
+

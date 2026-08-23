@@ -37,6 +37,42 @@ def delete_user(
     return {"message": f"User '{user.username}' deleted successfully"}
 
 
+@router.put("/users/{user_id}/approve", response_model=UserResponse)
+def approve_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Approve a pending user registration. Admin only."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_approved = True
+    user.approval_status = "approved"
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.put("/users/{user_id}/reject", response_model=UserResponse)
+def reject_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    """Reject a user registration request. Admin only."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_approved = False
+    user.approval_status = "rejected"
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @router.get("/logs", response_model=List[AccessLogResponse])
 def list_access_logs(
     db: Session = Depends(get_db),

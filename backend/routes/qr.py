@@ -73,7 +73,36 @@ def verify_qr_code(
     if datetime.utcnow() > visitor_pass.expires_at:
         visitor_pass.status = PassStatus.expired
         db.commit()
-        return QRVerifyResponse(valid=False, message="This visitor pass has expired")
+        return QRVerifyResponse(valid=False, message="❌ Pass Expired: This visitor pass has expired.", visitor_pass=visitor_pass)
+
+    # ── State Validation ──
+    if data.action == "entry":
+        if visitor_pass.status in [PassStatus.in_campus, PassStatus.used]:
+            return QRVerifyResponse(
+                valid=False,
+                message="❌ Entry Denied: This pass has ALREADY been scanned for entry! Vehicle is currently inside campus.",
+                visitor_pass=visitor_pass,
+            )
+        if visitor_pass.status == PassStatus.exited:
+            return QRVerifyResponse(
+                valid=False,
+                message="❌ Entry Denied: This pass has completed its visit and the vehicle has already exited.",
+                visitor_pass=visitor_pass,
+            )
+
+    if data.action == "exit":
+        if visitor_pass.status in [PassStatus.not_inside, PassStatus.approved, PassStatus.pending]:
+            return QRVerifyResponse(
+                valid=False,
+                message="❌ Exit Denied: This vehicle has NOT entered the campus yet.",
+                visitor_pass=visitor_pass,
+            )
+        if visitor_pass.status == PassStatus.exited:
+            return QRVerifyResponse(
+                valid=False,
+                message="❌ Exit Denied: This vehicle has ALREADY exited the campus.",
+                visitor_pass=visitor_pass,
+            )
 
     # Valid — create access log & update vehicle status
     log = AccessLog(

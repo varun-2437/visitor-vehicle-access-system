@@ -11,6 +11,8 @@ class UserCreate(BaseModel):
     full_name: str
     role: str = "resident"
     flat_number: Optional[str] = None
+    is_approved: bool = True
+    approval_status: str = "approved"
 
 
 class UserLogin(BaseModel):
@@ -35,6 +37,8 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     flat_number: Optional[str] = None
+    is_approved: bool = True
+    approval_status: str = "approved"
     created_at: datetime
 
     class Config:

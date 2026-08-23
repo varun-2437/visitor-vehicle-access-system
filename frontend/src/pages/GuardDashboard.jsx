@@ -2,12 +2,18 @@ import { useState, useRef, useEffect } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API from "../api";
 import Navbar from "../components/Navbar";
+import Toast from "../components/Toast";
+import { formatDateTime, formatTimeOnly } from "../utils/datetime";
+import { exportToCSV } from "../utils/exportCsv";
 
 export default function GuardDashboard() {
   const [scanResult, setScanResult] = useState(null);
+  const [lastSource, setLastSource] = useState(null); // 'qr' or 'manual'
   const [scanning, setScanning] = useState(false);
   const [manualToken, setManualToken] = useState("");
   const [error, setError] = useState("");
+  const [toast, setToast] = useState({ message: "", type: "info" });
+  const [searchQuery, setSearchQuery] = useState("");
   const [action, setAction] = useState("entry");
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
@@ -37,13 +43,60 @@ export default function GuardDashboard() {
     return <span className={`badge ${item.badge}`}>{item.label}</span>;
   };
 
-
   useEffect(() => {
     fetchTodayData();
     return () => {
       stopScanner();
     };
   }, []);
+
+  // Keyboard Shortcuts for Power Users (Alt+S: Scanner, Alt+E: Toggle Action, Alt+R: Refresh)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.altKey && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        if (scanning) stopScanner();
+        else startScanner();
+      } else if (e.altKey && (e.key === "e" || e.key === "E")) {
+        e.preventDefault();
+        setAction((prev) => (prev === "entry" ? "exit" : "entry"));
+        setToast({ message: `Gate action set to ${action === "entry" ? "EXIT" : "ENTRY"}`, type: "info" });
+      } else if (e.altKey && (e.key === "r" || e.key === "R")) {
+        e.preventDefault();
+        fetchTodayData();
+        setToast({ message: "Today's logs and passes refreshed", type: "info" });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [scanning, action]);
+
+  const handleExportPasses = () => {
+    exportToCSV("today_approved_passes.csv", filteredPasses, [
+      { label: "Visitor Name", accessor: "visitor_name" },
+      { label: "Vehicle Number", accessor: (r) => r.vehicle_number || "N/A" },
+      { label: "Purpose", accessor: (r) => r.purpose || "N/A" },
+      { label: "Resident Name", accessor: (r) => r.resident?.full_name || "N/A" },
+      { label: "Flat Number", accessor: (r) => r.resident?.flat_number || "N/A" },
+      { label: "Pass Status", accessor: "status" },
+      { label: "Expires Date & Time", accessor: (r) => formatDateTime(r.expires_at) },
+    ]);
+    setToast({ message: "✅ Exported today's passes to CSV", type: "success" });
+  };
+
+  const handleExportLogs = () => {
+    exportToCSV("today_vehicle_logs.csv", filteredLogs, [
+      { label: "Log ID", accessor: "id" },
+      { label: "Gate Action", accessor: (r) => r.action.toUpperCase() },
+      { label: "Vehicle Number", accessor: (r) => r.visitor_pass?.vehicle_number || "N/A" },
+      { label: "Visitor Name", accessor: (r) => r.visitor_pass?.visitor_name || "N/A" },
+      { label: "Resident Name", accessor: (r) => r.visitor_pass?.resident?.full_name || "N/A" },
+      { label: "Flat Number", accessor: (r) => r.visitor_pass?.resident?.flat_number || "N/A" },
+      { label: "Logged By Guard", accessor: (r) => r.guard?.full_name || "N/A" },
+      { label: "Timestamp", accessor: (r) => formatDateTime(r.timestamp) },
+    ]);
+    setToast({ message: "✅ Exported today's activity logs to CSV", type: "success" });
+  };
 
   const fetchTodayData = async () => {
     try {
@@ -73,7 +126,7 @@ export default function GuardDashboard() {
         async (decodedText) => {
           await html5QrCode.stop();
           setScanning(false);
-          verifyToken(decodedText);
+          verifyToken(decodedText, 'qr');
         },
         () => {} // ignore scan errors
       );
@@ -94,12 +147,13 @@ export default function GuardDashboard() {
     setScanning(false);
   };
 
-  const verifyToken = async (token) => {
+  const verifyToken = async (token, source = 'qr') => {
     setError("");
     setScanResult(null);
     try {
       const res = await API.post("/api/qr/verify", { qr_token: token, action });
       setScanResult(res.data);
+      setLastSource(source);
       fetchTodayData(); // Refresh tables in real-time
     } catch (err) {
       setError(err.response?.data?.detail || "Verification failed");
@@ -109,7 +163,7 @@ export default function GuardDashboard() {
   const handleManualVerify = (e) => {
     e.preventDefault();
     if (manualToken.trim()) {
-      verifyToken(manualToken.trim());
+      verifyToken(manualToken.trim(), 'qr');
       setManualToken("");
     }
   };
@@ -121,7 +175,7 @@ export default function GuardDashboard() {
       const html5QrCode = new Html5Qrcode("qr-file-helper");
       const decodedText = await html5QrCode.scanFile(file, true);
       html5QrCode.clear();
-      verifyToken(decodedText);
+      verifyToken(decodedText, 'qr');
     } catch (err) {
       setError("❌ Could not read a valid QR code from that image. Please try another image file.");
     }
@@ -163,6 +217,7 @@ export default function GuardDashboard() {
         action: action,
       });
       setScanResult(res.data);
+      setLastSource('manual');
       setManualVehicle("");
       setManualVisitor("");
       setManualFlat("");
@@ -173,13 +228,67 @@ export default function GuardDashboard() {
     }
   };
 
+  const renderResultCard = () => {
+    if (!scanResult) return null;
+    return (
+      <div className={`scan-result-container ${scanResult.valid ? "result-valid" : "result-invalid"}`}>
+        <h3>{scanResult.valid ? "✅" : "❌"} {scanResult.message}</h3>
+        {scanResult.visitor_pass && (
+          <div className="result-details">
+            <div className="detail-row"><strong>Visitor:</strong> {scanResult.visitor_pass.visitor_name}</div>
+            <div className="detail-row"><strong>Vehicle Number:</strong> <code>{scanResult.visitor_pass.vehicle_number || "Not specified"}</code></div>
+            <div className="detail-row"><strong>Purpose:</strong> {scanResult.visitor_pass.purpose || "Not specified"}</div>
+            <div className="detail-row"><strong>Vehicle Status:</strong> {renderStatusBadge(scanResult.visitor_pass.status)}</div>
+            <div className="detail-row"><strong>Host Resident:</strong> {scanResult.visitor_pass.resident?.full_name || "—"} ({scanResult.visitor_pass.resident?.flat_number || "Gate"})</div>
+            <div className="detail-row"><strong>Expires / Valid Until:</strong> {formatDateTime(scanResult.visitor_pass.expires_at)}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const filteredPasses = todayPasses.filter((p) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (p.visitor_name && p.visitor_name.toLowerCase().includes(q)) ||
+      (p.vehicle_number && p.vehicle_number.toLowerCase().includes(q)) ||
+      (p.purpose && p.purpose.toLowerCase().includes(q)) ||
+      (p.resident?.full_name && p.resident.full_name.toLowerCase().includes(q)) ||
+      (p.resident?.flat_number && p.resident.flat_number.toLowerCase().includes(q)) ||
+      (p.status && p.status.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredLogs = todayLogs.filter((log) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (log.action && log.action.toLowerCase().includes(q)) ||
+      (log.visitor_pass?.vehicle_number && log.visitor_pass.vehicle_number.toLowerCase().includes(q)) ||
+      (log.visitor_pass?.visitor_name && log.visitor_pass.visitor_name.toLowerCase().includes(q)) ||
+      (log.visitor_pass?.resident?.full_name && log.visitor_pass.resident.full_name.toLowerCase().includes(q)) ||
+      (log.visitor_pass?.resident?.flat_number && log.visitor_pass.resident.flat_number.toLowerCase().includes(q)) ||
+      (log.guard?.full_name && log.guard.full_name.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <>
       <Navbar />
+      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "info" })} />
+
       <div className="dashboard" onPaste={handlePaste}>
-        <h2>Security Guard Dashboard</h2>
+        <h2>Gate Guard Terminal</h2>
 
         {error && <div className="alert alert-error">{error}</div>}
+
+        <div className="shortcuts-legend">
+          <span>⌨️ Power Shortcuts:</span>
+          <span><span className="shortcut-badge">Alt + S</span> Start/Stop Camera</span>
+          <span><span className="shortcut-badge">Alt + E</span> Toggle Action (Entry/Exit)</span>
+          <span><span className="shortcut-badge">Alt + R</span> Refresh Logs</span>
+        </div>
 
         {/* Dashboard Section Navigation Tabs */}
         <div className="tabs">
@@ -268,6 +377,9 @@ export default function GuardDashboard() {
                   </form>
                 </div>
               </div>
+
+              {/* QR Scan Result Banner rendered immediately inside the QR section */}
+              {lastSource === 'qr' && renderResultCard()}
             </div>
 
             {/* Manual Vehicle Entry Panel */}
@@ -284,10 +396,15 @@ export default function GuardDashboard() {
                     <input
                       type="text"
                       value={manualVehicle}
-                      onChange={(e) => setManualVehicle(e.target.value)}
+                      onChange={(e) => setManualVehicle(e.target.value.toUpperCase())}
                       placeholder="e.g. MH14DX5842"
                       required
                     />
+                    {manualVehicle && (
+                      <small style={{ color: (/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim())) ? "var(--success)" : "var(--danger)", fontSize: "0.8rem", marginTop: "4px", display: "block" }}>
+                        {(/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim())) ? "✓ Valid vehicle license plate format" : "⚠️ Format should be e.g. MH14DX5842 or KA01AB1234"}
+                      </small>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>Visitor Name *</label>
@@ -326,6 +443,9 @@ export default function GuardDashboard() {
                   📝 Log Manual Vehicle {action.toUpperCase()}
                 </button>
               </form>
+
+              {/* Manual Entry Result Banner rendered immediately inside the Manual Entry section */}
+              {lastSource === 'manual' && renderResultCard()}
             </div>
           </>
         )}
@@ -335,10 +455,25 @@ export default function GuardDashboard() {
           <div className="panel">
             <div className="panel-header">
               <h3>🎫 Today's Approved Visitor Passes</h3>
-              <button className="btn btn-outline btn-sm" onClick={fetchTodayData}>🔄 Refresh</button>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button className="btn btn-outline btn-sm" onClick={handleExportPasses}>📥 Export CSV</button>
+                <button className="btn btn-outline btn-sm" onClick={fetchTodayData}>🔄 Refresh</button>
+              </div>
             </div>
-            {todayPasses.length === 0 ? (
-              <p className="empty-state">No visitor passes created today yet.</p>
+
+            <div className="search-filter-box">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search passes by visitor name, vehicle number, host resident, flat..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {filteredPasses.length === 0 ? (
+              <p className="empty-state">No matching visitor passes found.</p>
             ) : (
               <table className="data-table">
                 <thead>
@@ -348,18 +483,18 @@ export default function GuardDashboard() {
                     <th>Purpose</th>
                     <th>Host Resident / Flat</th>
                     <th>Pass Status</th>
-                    <th>Expires At</th>
+                    <th>Expires Date & Time</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {todayPasses.map((p) => (
+                  {filteredPasses.map((p) => (
                     <tr key={p.id}>
                       <td><strong>{p.visitor_name}</strong></td>
                       <td><code>{p.vehicle_number || "—"}</code></td>
                       <td>{p.purpose || "—"}</td>
                       <td>{p.resident?.full_name || "—"} ({p.resident?.flat_number || "Gate"})</td>
                       <td>{renderStatusBadge(p.status)}</td>
-                      <td>{new Date(p.expires_at).toLocaleTimeString()}</td>
+                      <td>{formatDateTime(p.expires_at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -373,10 +508,25 @@ export default function GuardDashboard() {
           <div className="panel">
             <div className="panel-header">
               <h3>🚗 Today's Vehicle Entry & Exit Activity Logs</h3>
-              <button className="btn btn-outline btn-sm" onClick={fetchTodayData}>🔄 Refresh</button>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button className="btn btn-outline btn-sm" onClick={handleExportLogs}>📥 Export CSV</button>
+                <button className="btn btn-outline btn-sm" onClick={fetchTodayData}>🔄 Refresh</button>
+              </div>
             </div>
-            {todayLogs.length === 0 ? (
-              <p className="empty-state">No vehicle activity logged today yet.</p>
+
+            <div className="search-filter-box">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search logs by vehicle number, visitor name, gate action, guard..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {filteredLogs.length === 0 ? (
+              <p className="empty-state">No matching vehicle activity logs found.</p>
             ) : (
               <table className="data-table">
                 <thead>
@@ -386,39 +536,22 @@ export default function GuardDashboard() {
                     <th>Visitor Name</th>
                     <th>Host Resident / Flat</th>
                     <th>Logged By Guard</th>
-                    <th>Timestamp</th>
+                    <th>Logged Date & Time</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {todayLogs.map((log) => (
+                  {filteredLogs.map((log) => (
                     <tr key={log.id}>
                       <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
                       <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
                       <td>{log.visitor_pass?.visitor_name || "—"}</td>
                       <td>{log.visitor_pass?.resident?.full_name || "—"} ({log.visitor_pass?.resident?.flat_number || "Gate"})</td>
                       <td>{log.guard?.full_name || "—"}</td>
-                      <td>{new Date(log.timestamp).toLocaleTimeString()}</td>
+                      <td>{formatDateTime(log.timestamp)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-        )}
-
-        {/* Scan / Verification Result Card */}
-        {scanResult && (
-          <div className={`panel scan-result ${scanResult.valid ? "result-valid" : "result-invalid"}`}>
-            <h3>{scanResult.valid ? "✅" : "❌"} {scanResult.message}</h3>
-            {scanResult.visitor_pass && (
-              <div className="result-details">
-                <div className="detail-row"><strong>Visitor:</strong> {scanResult.visitor_pass.visitor_name}</div>
-                <div className="detail-row"><strong>Vehicle Number:</strong> {scanResult.visitor_pass.vehicle_number || "Not specified"}</div>
-                <div className="detail-row"><strong>Purpose:</strong> {scanResult.visitor_pass.purpose || "Not specified"}</div>
-                <div className="detail-row"><strong>Pass Status:</strong> {scanResult.visitor_pass.status}</div>
-                <div className="detail-row"><strong>Host Resident:</strong> {scanResult.visitor_pass.resident?.full_name || "—"} ({scanResult.visitor_pass.resident?.flat_number || "Gate"})</div>
-                <div className="detail-row"><strong>Timestamp / Expires:</strong> {new Date(scanResult.visitor_pass.expires_at).toLocaleString()}</div>
-              </div>
             )}
           </div>
         )}
