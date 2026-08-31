@@ -30,6 +30,10 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class UserRejectRequest(BaseModel):
+    rejection_reason: Optional[str] = "Application details could not be verified by Admin."
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -39,6 +43,7 @@ class UserResponse(BaseModel):
     flat_number: Optional[str] = None
     is_approved: bool = True
     approval_status: str = "approved"
+    rejection_reason: Optional[str] = None
     created_at: datetime
 
     class Config:

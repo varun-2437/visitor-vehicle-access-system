@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { WifiOffIcon } from "./Icons";
 
 export default function OfflineBanner() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -19,8 +20,8 @@ export default function OfflineBanner() {
   if (isOnline) return null;
 
   return (
-    <div className="offline-banner">
-      <span className="offline-icon">📡</span>
+    <div className="offline-banner" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <WifiOffIcon size={18} />
       <span>
         <strong>You're currently offline.</strong> Changes will sync automatically when network connection is restored.
       </span>

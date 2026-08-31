@@ -3,8 +3,29 @@ import { Html5Qrcode } from "html5-qrcode";
 import API from "../api";
 import Navbar from "../components/Navbar";
 import Toast from "../components/Toast";
+import CampusSketchBG from "../components/CampusSketchBG";
 import { formatDateTime, formatTimeOnly } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
+import {
+  KeyboardIcon,
+  SearchIcon,
+  SortIcon,
+  CameraIcon,
+  StopIcon,
+  VehicleEntryIcon,
+  VehicleExitIcon,
+  ExportIcon,
+  RefreshIcon,
+  QrTicketIcon,
+  LogsIcon,
+  FilterIcon,
+  FolderIcon,
+  ClipboardIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  CalendarIcon,
+  ClockIcon,
+} from "../components/Icons";
 
 export default function GuardDashboard() {
   const [scanResult, setScanResult] = useState(null);
@@ -14,6 +35,15 @@ export default function GuardDashboard() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState("date_desc"); // 'date_desc', 'date_asc', 'name_asc', 'name_desc'
+  const [statusFilter, setStatusFilter] = useState("all"); // 'all', 'in_campus', 'not_inside', 'exited', 'expired'
+  const [actionFilter, setActionFilter] = useState("all"); // 'all', 'entry', 'exit'
+  
+  // Date Range & Time Filter state
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [datePreset, setDatePreset] = useState("all"); // 'all', 'today', 'yesterday', 'last7', 'custom'
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [action, setAction] = useState("entry");
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
@@ -29,15 +59,37 @@ export default function GuardDashboard() {
   const [todayLogs, setTodayLogs] = useState([]);
   const [activeTab, setActiveTab] = useState("scanner"); // "scanner", "passes", "logs"
 
+  // Sorting helper
+  const sortData = (list) => {
+    return [...list].sort((a, b) => {
+      const aId = a.id || 0;
+      const bId = b.id || 0;
+
+      const aName = (a.visitor_name || a.vehicle_number || a.visitor_pass?.visitor_name || a.visitor_pass?.vehicle_number || "").toLowerCase();
+      const bName = (b.visitor_name || b.vehicle_number || b.visitor_pass?.visitor_name || b.visitor_pass?.vehicle_number || "").toLowerCase();
+
+      const aDate = new Date(a.timestamp || a.created_at || a.expires_at || 0).getTime();
+      const bDate = new Date(b.timestamp || b.created_at || b.expires_at || 0).getTime();
+
+      if (sortOrder === "id_asc") return aId - bId;
+      if (sortOrder === "id_desc") return bId - aId;
+      if (sortOrder === "name_asc") return aName.localeCompare(bName);
+      if (sortOrder === "name_desc") return bName.localeCompare(aName);
+      if (sortOrder === "date_desc") return bDate - aDate;
+      if (sortOrder === "date_asc") return aDate - bDate;
+      return 0;
+    });
+  };
+
   const renderStatusBadge = (status) => {
     const map = {
-      not_inside: { label: "🟡 Pass Created (Not Inside)", badge: "badge-not_inside" },
-      approved: { label: "🟡 Pass Created (Not Inside)", badge: "badge-not_inside" },
-      pending: { label: "🟡 Pass Created (Not Inside)", badge: "badge-not_inside" },
-      in_campus: { label: "🟢 In Campus", badge: "badge-in_campus" },
-      used: { label: "🟢 In Campus", badge: "badge-in_campus" },
-      exited: { label: "🔵 Vehicle Exited Campus", badge: "badge-exited" },
-      expired: { label: "🔴 Pass Expired", badge: "badge-expired" },
+      not_inside: { label: "Pass Created (Not Inside)", badge: "badge-not_inside" },
+      approved: { label: "Pass Created (Not Inside)", badge: "badge-not_inside" },
+      pending: { label: "Pass Created (Not Inside)", badge: "badge-not_inside" },
+      in_campus: { label: "In Campus", badge: "badge-in_campus" },
+      used: { label: "In Campus", badge: "badge-in_campus" },
+      exited: { label: "Vehicle Exited Campus", badge: "badge-exited" },
+      expired: { label: "Pass Expired", badge: "badge-expired" },
     };
     const item = map[status] || { label: status?.toUpperCase() || "UNKNOWN", badge: "badge-pending" };
     return <span className={`badge ${item.badge}`}>{item.label}</span>;
@@ -81,7 +133,7 @@ export default function GuardDashboard() {
       { label: "Pass Status", accessor: "status" },
       { label: "Expires Date & Time", accessor: (r) => formatDateTime(r.expires_at) },
     ]);
-    setToast({ message: "✅ Exported today's passes to CSV", type: "success" });
+    setToast({ message: "Exported today's passes to CSV", type: "success" });
   };
 
   const handleExportLogs = () => {
@@ -95,7 +147,7 @@ export default function GuardDashboard() {
       { label: "Logged By Guard", accessor: (r) => r.guard?.full_name || "N/A" },
       { label: "Timestamp", accessor: (r) => formatDateTime(r.timestamp) },
     ]);
-    setToast({ message: "✅ Exported today's activity logs to CSV", type: "success" });
+    setToast({ message: "Exported today's activity logs to CSV", type: "success" });
   };
 
   const fetchTodayData = async () => {
@@ -107,7 +159,7 @@ export default function GuardDashboard() {
       setTodayPasses(passesRes.data);
       setTodayLogs(logsRes.data);
     } catch (err) {
-      console.error("Failed to fetch today's guard data:", err);
+      console.error("Failed to fetch today guard data:", err);
     }
   };
 
@@ -177,7 +229,7 @@ export default function GuardDashboard() {
       html5QrCode.clear();
       verifyToken(decodedText, 'qr');
     } catch (err) {
-      setError("❌ Could not read a valid QR code from that image. Please try another image file.");
+      setError("Could not read a valid QR code from that image. Please try another image file.");
     }
   };
 
@@ -232,22 +284,105 @@ export default function GuardDashboard() {
     if (!scanResult) return null;
     return (
       <div className={`scan-result-container ${scanResult.valid ? "result-valid" : "result-invalid"}`}>
-        <h3>{scanResult.valid ? "✅" : "❌"} {scanResult.message}</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {scanResult.valid ? <CheckCircleIcon size={20} style={{ color: "var(--success)" }} /> : <XCircleIcon size={20} style={{ color: "var(--danger)" }} />} {scanResult.message}
+        </h3>
         {scanResult.visitor_pass && (
-          <div className="result-details">
-            <div className="detail-row"><strong>Visitor:</strong> {scanResult.visitor_pass.visitor_name}</div>
-            <div className="detail-row"><strong>Vehicle Number:</strong> <code>{scanResult.visitor_pass.vehicle_number || "Not specified"}</code></div>
-            <div className="detail-row"><strong>Purpose:</strong> {scanResult.visitor_pass.purpose || "Not specified"}</div>
-            <div className="detail-row"><strong>Vehicle Status:</strong> {renderStatusBadge(scanResult.visitor_pass.status)}</div>
-            <div className="detail-row"><strong>Host Resident:</strong> {scanResult.visitor_pass.resident?.full_name || "—"} ({scanResult.visitor_pass.resident?.flat_number || "Gate"})</div>
-            <div className="detail-row"><strong>Expires / Valid Until:</strong> {formatDateTime(scanResult.visitor_pass.expires_at)}</div>
-          </div>
+          <>
+            <div className="result-details">
+              <div className="detail-row"><strong>Visitor:</strong> {scanResult.visitor_pass.visitor_name}</div>
+              <div className="detail-row"><strong>Vehicle Number:</strong> <code>{scanResult.visitor_pass.vehicle_number || "Not specified"}</code></div>
+              <div className="detail-row"><strong>Purpose:</strong> {scanResult.visitor_pass.purpose || "Not specified"}</div>
+              <div className="detail-row"><strong>Vehicle Status:</strong> {renderStatusBadge(scanResult.visitor_pass.status)}</div>
+              <div className="detail-row"><strong>Host Resident:</strong> {scanResult.visitor_pass.resident?.full_name || "—"} ({scanResult.visitor_pass.resident?.flat_number || "Gate"})</div>
+              <div className="detail-row"><strong>Expires / Valid Until:</strong> {formatDateTime(scanResult.visitor_pass.expires_at)}</div>
+            </div>
+
+            {scanResult.visitor_pass.qr_image_path && (
+              <div className="qr-pass-display-box" style={{ marginTop: "16px", padding: "16px", background: "var(--bg-input)", borderRadius: "var(--radius)", textAlign: "center", border: "1px solid var(--border)" }}>
+                <h4 style={{ margin: "0 0 6px 0", fontSize: "0.95rem", color: "var(--text)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                  <QrTicketIcon size={18} /> Gate Pass QR Code (Generated for Exit Verification)
+                </h4>
+                <img
+                  src={`http://${window.location.hostname}:8000${scanResult.visitor_pass.qr_image_path}`}
+                  alt="Gate Pass QR Code"
+                  style={{ width: "160px", height: "160px", margin: "10px auto", display: "block", borderRadius: "8px", border: "2px solid var(--border)", background: "#fff", padding: "4px" }}
+                />
+                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "4px 0 0 0" }}>
+                  Pass Token UUID: <code>{scanResult.visitor_pass.qr_token}</code>
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
     );
   };
 
-  const filteredPasses = todayPasses.filter((p) => {
+  const applyDatePreset = (preset) => {
+    setDatePreset(preset);
+    const now = new Date();
+    if (preset === "all") {
+      setFromDate("");
+      setToDate("");
+    } else if (preset === "today") {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      setFromDate(start.toISOString().slice(0, 16));
+      setToDate(end.toISOString().slice(0, 16));
+    } else if (preset === "yesterday") {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0);
+      const end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59);
+      setFromDate(start.toISOString().slice(0, 16));
+      setToDate(end.toISOString().slice(0, 16));
+    } else if (preset === "last7") {
+      const start = new Date();
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      setFromDate(start.toISOString().slice(0, 16));
+      setToDate(end.toISOString().slice(0, 16));
+    }
+  };
+
+  const resetAllFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setActionFilter("all");
+    setDatePreset("all");
+    setFromDate("");
+    setToDate("");
+    setSortOrder("date_desc");
+  };
+
+  const filterByDateRange = (list, dateField = "timestamp") => {
+    return list.filter((item) => {
+      const rawDate = item[dateField] || item.timestamp || item.created_at;
+      if (!rawDate) return true;
+      if (!fromDate && !toDate) return true;
+
+      const isoStr = (typeof rawDate === "string" && !rawDate.endsWith("Z") && !rawDate.includes("+"))
+        ? rawDate + "Z"
+        : rawDate;
+      const itemTime = new Date(isoStr).getTime();
+
+      if (fromDate) {
+        const fromTime = new Date(fromDate).getTime();
+        if (itemTime < fromTime) return false;
+      }
+      if (toDate) {
+        const toTime = new Date(toDate).getTime();
+        if (itemTime > toTime) return false;
+      }
+      return true;
+    });
+  };
+
+  const filteredPasses = sortData(filterByDateRange(todayPasses.filter((p) => {
+    if (statusFilter !== "all" && p.status !== statusFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
@@ -258,9 +393,10 @@ export default function GuardDashboard() {
       (p.resident?.flat_number && p.resident.flat_number.toLowerCase().includes(q)) ||
       (p.status && p.status.toLowerCase().includes(q))
     );
-  });
+  }), "created_at"));
 
-  const filteredLogs = todayLogs.filter((log) => {
+  const filteredLogs = sortData(filterByDateRange(todayLogs.filter((log) => {
+    if (actionFilter !== "all" && log.action !== actionFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
     return (
@@ -271,44 +407,59 @@ export default function GuardDashboard() {
       (log.visitor_pass?.resident?.flat_number && log.visitor_pass.resident.flat_number.toLowerCase().includes(q)) ||
       (log.guard?.full_name && log.guard.full_name.toLowerCase().includes(q))
     );
-  });
+  }), "timestamp"));
 
   return (
     <>
+      <CampusSketchBG />
       <Navbar />
       <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "info" })} />
 
       <div className="dashboard" onPaste={handlePaste}>
-        <h2>Gate Guard Terminal</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <h2 style={{ margin: 0 }}>Gate Guard Terminal</h2>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setShowShortcuts(!showShortcuts)}
+            style={{ fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <KeyboardIcon size={16} /> {showShortcuts ? "Hide Shortcuts" : "Keyboard Shortcuts"}
+          </button>
+        </div>
 
         {error && <div className="alert alert-error">{error}</div>}
 
-        <div className="shortcuts-legend">
-          <span>⌨️ Power Shortcuts:</span>
-          <span><span className="shortcut-badge">Alt + S</span> Start/Stop Camera</span>
-          <span><span className="shortcut-badge">Alt + E</span> Toggle Action (Entry/Exit)</span>
-          <span><span className="shortcut-badge">Alt + R</span> Refresh Logs</span>
-        </div>
+        {showShortcuts && (
+          <div className="shortcuts-legend" style={{ marginBottom: "16px" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><KeyboardIcon size={14} /> Power Shortcuts:</span>
+            <span><span className="shortcut-badge">Alt + S</span> Start/Stop Camera</span>
+            <span><span className="shortcut-badge">Alt + E</span> Toggle Action (Entry/Exit)</span>
+            <span><span className="shortcut-badge">Alt + R</span> Refresh Logs</span>
+          </div>
+        )}
 
         {/* Dashboard Section Navigation Tabs */}
         <div className="tabs">
           <button
             className={`tab ${activeTab === "scanner" ? "active" : ""}`}
             onClick={() => setActiveTab("scanner")}
+            style={{ display: "flex", alignItems: "center", gap: "6px" }}
           >
-            📷 Gate Scanner & Manual Entry
+            <CameraIcon size={16} /> Gate Scanner & Manual Entry
           </button>
           <button
             className={`tab ${activeTab === "passes" ? "active" : ""}`}
             onClick={() => setActiveTab("passes")}
+            style={{ display: "flex", alignItems: "center", gap: "6px" }}
           >
-            🎫 Today's Approved Passes ({todayPasses.length})
+            <QrTicketIcon size={16} /> Today's Approved Passes ({todayPasses.length})
           </button>
           <button
             className={`tab ${activeTab === "logs" ? "active" : ""}`}
             onClick={() => setActiveTab("logs")}
+            style={{ display: "flex", alignItems: "center", gap: "6px" }}
           >
-            🚗 Today's Entry / Exit Logs ({todayLogs.length})
+            <LogsIcon size={16} /> Today's Entry / Exit Logs ({todayLogs.length})
           </button>
         </div>
 
@@ -317,24 +468,38 @@ export default function GuardDashboard() {
           <>
             {/* Scan & Verification Panel */}
             <div className="panel">
-              <h3>🔍 Scan / Upload Visitor QR Code</h3>
+              <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><SearchIcon size={18} /> Scan / Upload Visitor QR Code</h3>
 
               <div className="scan-controls">
-                <div className="form-group">
-                  <label>Gate Action</label>
-                  <select value={action} onChange={(e) => setAction(e.target.value)}>
-                    <option value="entry">Vehicle Entry</option>
-                    <option value="exit">Vehicle Exit</option>
-                  </select>
+                <div className="gate-action-toggle-group">
+                  <label className="gate-action-label">Gate Action</label>
+                  <div className="gate-action-buttons">
+                    <button
+                      type="button"
+                      className={`btn-action-toggle ${action === "entry" ? "active-entry" : ""}`}
+                      onClick={() => setAction("entry")}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <VehicleEntryIcon size={16} /> Vehicle Entry
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-action-toggle ${action === "exit" ? "active-exit" : ""}`}
+                      onClick={() => setAction("exit")}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <VehicleExitIcon size={16} /> Vehicle Exit
+                    </button>
+                  </div>
                 </div>
 
                 {!scanning ? (
-                  <button className="btn btn-primary" onClick={startScanner}>
-                    📷 Start Live Camera Scanner
+                  <button className="btn btn-primary" onClick={startScanner} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <CameraIcon size={18} /> Start Live Camera Scanner
                   </button>
                 ) : (
-                  <button className="btn btn-danger" onClick={stopScanner}>
-                    ⏹ Stop Camera Scanner
+                  <button className="btn btn-danger" onClick={stopScanner} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <StopIcon size={18} /> Stop Camera Scanner
                   </button>
                 )}
               </div>
@@ -344,7 +509,7 @@ export default function GuardDashboard() {
 
               <div className="qr-methods">
                 <div className="qr-method-card">
-                  <h4>📁 Select QR Image File</h4>
+                  <h4 style={{ display: "flex", alignItems: "center", gap: "6px" }}><FolderIcon size={16} /> Select QR Image File</h4>
                   <p className="method-desc">Choose a saved QR image (`.png`, `.jpg`, `.jpeg`) from device:</p>
                   <input
                     type="file"
@@ -355,7 +520,7 @@ export default function GuardDashboard() {
                 </div>
 
                 <div className="qr-method-card">
-                  <h4>📋 Paste Image from Clipboard</h4>
+                  <h4 style={{ display: "flex", alignItems: "center", gap: "6px" }}><ClipboardIcon size={16} /> Paste Image from Clipboard</h4>
                   <p className="method-desc">Press <strong>Ctrl + V</strong> (or <strong>Cmd + V</strong>) anywhere, or click below:</p>
                   <div className="paste-zone" tabIndex="0" onPaste={handlePaste}>
                     <span>Click & Press Ctrl+V to paste QR image</span>
@@ -363,7 +528,7 @@ export default function GuardDashboard() {
                 </div>
 
                 <div className="qr-method-card">
-                  <h4>⌨️ Manual Token UUID String</h4>
+                  <h4 style={{ display: "flex", alignItems: "center", gap: "6px" }}><KeyboardIcon size={16} /> Manual Token UUID String</h4>
                   <p className="method-desc">Enter raw QR UUID token string:</p>
                   <form onSubmit={handleManualVerify} className="form-row">
                     <input
@@ -373,7 +538,7 @@ export default function GuardDashboard() {
                       placeholder="e.g. e75baca1-d421-4191..."
                       className="flex-grow"
                     />
-                    <button type="submit" className="btn btn-primary">Verify</button>
+                    <button type="submit" className="btn btn-primary" disabled={!manualToken.trim()}>Verify</button>
                   </form>
                 </div>
               </div>
@@ -384,65 +549,79 @@ export default function GuardDashboard() {
 
             {/* Manual Vehicle Entry Panel */}
             <div className="panel">
-              <h3>🚗 Manual Vehicle Entry / Register</h3>
+              <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><VehicleEntryIcon size={20} /> Manual Vehicle Entry / Register</h3>
               <p className="method-desc" style={{ marginBottom: "16px" }}>
                 Use this section for walk-in visitors or vehicles arriving without a pre-generated QR code pass.
               </p>
 
-              <form onSubmit={handleManualVehicleSubmit} className="create-form">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Vehicle Number *</label>
-                    <input
-                      type="text"
-                      value={manualVehicle}
-                      onChange={(e) => setManualVehicle(e.target.value.toUpperCase())}
-                      placeholder="e.g. MH14DX5842"
-                      required
-                    />
-                    {manualVehicle && (
-                      <small style={{ color: (/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim())) ? "var(--success)" : "var(--danger)", fontSize: "0.8rem", marginTop: "4px", display: "block" }}>
-                        {(/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim())) ? "✓ Valid vehicle license plate format" : "⚠️ Format should be e.g. MH14DX5842 or KA01AB1234"}
-                      </small>
-                    )}
-                  </div>
-                  <div className="form-group">
-                    <label>Visitor Name *</label>
-                    <input
-                      type="text"
-                      value={manualVisitor}
-                      onChange={(e) => setManualVisitor(e.target.value)}
-                      placeholder="e.g. Suresh Kumar"
-                      required
-                    />
-                  </div>
-                </div>
+              {(() => {
+                const isManualEntryDisabled = !manualVehicle.trim() || !manualVisitor.trim() || !(/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim()));
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Flat / Unit Number</label>
-                    <input
-                      type="text"
-                      value={manualFlat}
-                      onChange={(e) => setManualFlat(e.target.value)}
-                      placeholder="e.g. A-101 (Optional)"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Purpose</label>
-                    <input
-                      type="text"
-                      value={manualPurpose}
-                      onChange={(e) => setManualPurpose(e.target.value)}
-                      placeholder="e.g. Delivery, Maintenance, Guest"
-                    />
-                  </div>
-                </div>
+                return (
+                  <form onSubmit={handleManualVehicleSubmit} className="create-form">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>
+                          Vehicle Number <span style={{ color: "var(--primary)", fontWeight: "bold" }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={manualVehicle}
+                          onChange={(e) => setManualVehicle(e.target.value.toUpperCase())}
+                          placeholder="e.g. MH14DX5842"
+                          required
+                        />
+                        {manualVehicle && (
+                          <small style={{ color: (/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim())) ? "var(--success)" : "var(--danger)", fontSize: "0.8rem", marginTop: "4px", display: "block" }}>
+                            {(/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim())) ? "✓ Valid vehicle license plate format" : "Format should be e.g. MH14DX5842 or KA01AB1234"}
+                          </small>
+                        )}
+                      </div>
+                      <div className="form-group">
+                        <label>
+                          Visitor Name <span style={{ color: "var(--primary)", fontWeight: "bold" }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={manualVisitor}
+                          onChange={(e) => setManualVisitor(e.target.value)}
+                          placeholder="e.g. Suresh Kumar"
+                          required
+                        />
+                      </div>
+                    </div>
 
-                <button type="submit" className="btn btn-primary">
-                  📝 Log Manual Vehicle {action.toUpperCase()}
-                </button>
-              </form>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>
+                          Flat / Unit Number <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontWeight: "normal" }}>(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={manualFlat}
+                          onChange={(e) => setManualFlat(e.target.value)}
+                          placeholder="e.g. A-101 (Optional)"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>
+                          Purpose <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontWeight: "normal" }}>(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={manualPurpose}
+                          onChange={(e) => setManualPurpose(e.target.value)}
+                          placeholder="e.g. Delivery, Maintenance, Guest"
+                        />
+                      </div>
+                    </div>
+
+                    <button type="submit" className="btn btn-primary" disabled={isManualEntryDisabled} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      <VehicleEntryIcon size={16} /> Log Manual Vehicle {action.toUpperCase()}
+                    </button>
+                  </form>
+                );
+              })()}
 
               {/* Manual Entry Result Banner rendered immediately inside the Manual Entry section */}
               {lastSource === 'manual' && renderResultCard()}
@@ -454,22 +633,119 @@ export default function GuardDashboard() {
         {activeTab === "passes" && (
           <div className="panel">
             <div className="panel-header">
-              <h3>🎫 Today's Approved Visitor Passes</h3>
+              <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><QrTicketIcon size={20} /> Today's Approved Visitor Passes</h3>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button className="btn btn-outline btn-sm" onClick={handleExportPasses}>📥 Export CSV</button>
-                <button className="btn btn-outline btn-sm" onClick={fetchTodayData}>🔄 Refresh</button>
+                <button className="btn btn-outline btn-sm" onClick={handleExportPasses} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><ExportIcon size={14} /> Export CSV</button>
+                <button className="btn btn-outline btn-sm" onClick={fetchTodayData} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><RefreshIcon size={14} /> Refresh</button>
               </div>
             </div>
 
-            <div className="search-filter-box">
-              <span className="search-icon">🔍</span>
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Search passes by visitor name, vehicle number, host resident, flat..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "16px", marginBottom: "20px" }}>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
+                <div className="search-filter-box" style={{ flex: 1, minWidth: "240px", marginBottom: 0 }}>
+                  <SearchIcon className="search-icon" size={16} />
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search passes by visitor name, vehicle number, host resident, flat..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <FilterIcon size={16} /> Filter Status:
+                  </label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    style={{
+                      padding: "10px 14px",
+                      fontSize: "0.875rem",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-input)",
+                      color: "var(--text)",
+                      fontWeight: 500,
+                      cursor: "pointer"
+                    }}
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="in_campus">In Campus Only</option>
+                    <option value="not_inside">Not Inside (Pass Created)</option>
+                    <option value="exited">Vehicle Exited Only</option>
+                    <option value="expired">Pass Expired Only</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <SortIcon size={16} /> Sort By:
+                  </label>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    style={{
+                      padding: "10px 14px",
+                      fontSize: "0.875rem",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-input)",
+                      color: "var(--text)",
+                      fontWeight: 500,
+                      cursor: "pointer"
+                    }}
+                  >
+                    <option value="date_desc">Time: Newest First</option>
+                    <option value="date_asc">Time: Oldest First</option>
+                    <option value="name_asc">Visitor / Vehicle: A to Z</option>
+                    <option value="name_desc">Visitor / Vehicle: Z to A</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Date Presets & Date Range Search Bar */}
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <CalendarIcon size={16} style={{ color: "var(--primary)" }} />
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>Date Presets:</span>
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    <button type="button" className={`btn btn-sm ${datePreset === "all" ? "btn-primary" : "btn-outline"}`} onClick={() => applyDatePreset("all")}>All Time</button>
+                    <button type="button" className={`btn btn-sm ${datePreset === "today" ? "btn-primary" : "btn-outline"}`} onClick={() => applyDatePreset("today")}>Today</button>
+                    <button type="button" className={`btn btn-sm ${datePreset === "yesterday" ? "btn-primary" : "btn-outline"}`} onClick={() => applyDatePreset("yesterday")}>Yesterday</button>
+                    <button type="button" className={`btn btn-sm ${datePreset === "last7" ? "btn-primary" : "btn-outline"}`} onClick={() => applyDatePreset("last7")}>Last 7 Days</button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto", flexWrap: "wrap" }}>
+                  <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                    <ClockIcon size={14} /> From:
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={fromDate}
+                    onChange={(e) => { setFromDate(e.target.value); setDatePreset("custom"); }}
+                    style={{ padding: "6px 10px", fontSize: "0.8rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text)" }}
+                  />
+
+                  <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                    <ClockIcon size={14} /> To:
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={toDate}
+                    onChange={(e) => { setToDate(e.target.value); setDatePreset("custom"); }}
+                    style={{ padding: "6px 10px", fontSize: "0.8rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text)" }}
+                  />
+
+                  {(fromDate || toDate || searchQuery || statusFilter !== "all" || actionFilter !== "all" || datePreset !== "all") && (
+                    <button type="button" className="btn btn-outline btn-sm" onClick={resetAllFilters} style={{ fontSize: "0.8rem" }}>
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {filteredPasses.length === 0 ? (
@@ -507,22 +783,117 @@ export default function GuardDashboard() {
         {activeTab === "logs" && (
           <div className="panel">
             <div className="panel-header">
-              <h3>🚗 Today's Vehicle Entry & Exit Activity Logs</h3>
+              <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><LogsIcon size={20} /> Today's Vehicle Entry & Exit Activity Logs</h3>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button className="btn btn-outline btn-sm" onClick={handleExportLogs}>📥 Export CSV</button>
-                <button className="btn btn-outline btn-sm" onClick={fetchTodayData}>🔄 Refresh</button>
+                <button className="btn btn-outline btn-sm" onClick={handleExportLogs} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><ExportIcon size={14} /> Export CSV</button>
+                <button className="btn btn-outline btn-sm" onClick={fetchTodayData} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><RefreshIcon size={14} /> Refresh</button>
               </div>
             </div>
 
-            <div className="search-filter-box">
-              <span className="search-icon">🔍</span>
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Search logs by vehicle number, visitor name, gate action, guard..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "16px", marginBottom: "20px" }}>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
+                <div className="search-filter-box" style={{ flex: 1, minWidth: "240px", marginBottom: 0 }}>
+                  <SearchIcon className="search-icon" size={16} />
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search logs by vehicle number, visitor name, gate action, guard..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <FilterIcon size={16} /> Filter Action:
+                  </label>
+                  <select
+                    value={actionFilter}
+                    onChange={(e) => setActionFilter(e.target.value)}
+                    style={{
+                      padding: "10px 14px",
+                      fontSize: "0.875rem",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-input)",
+                      color: "var(--text)",
+                      fontWeight: 500,
+                      cursor: "pointer"
+                    }}
+                  >
+                    <option value="all">All Gate Actions</option>
+                    <option value="entry">Vehicle Entry Only</option>
+                    <option value="exit">Vehicle Exit Only</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <SortIcon size={16} /> Sort By:
+                  </label>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    style={{
+                      padding: "10px 14px",
+                      fontSize: "0.875rem",
+                      borderRadius: "var(--radius)",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-input)",
+                      color: "var(--text)",
+                      fontWeight: 500,
+                      cursor: "pointer"
+                    }}
+                  >
+                    <option value="date_desc">Logged: Newest First</option>
+                    <option value="date_asc">Logged: Oldest First</option>
+                    <option value="name_asc">Vehicle / Visitor: A to Z</option>
+                    <option value="name_desc">Vehicle / Visitor: Z to A</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Date Presets & Date Range Search Bar */}
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", borderTop: "1px solid var(--border)", paddingTop: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <CalendarIcon size={16} style={{ color: "var(--primary)" }} />
+                  <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-muted)" }}>Date Presets:</span>
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    <button type="button" className={`btn btn-sm ${datePreset === "all" ? "btn-primary" : "btn-outline"}`} onClick={() => applyDatePreset("all")}>All Time</button>
+                    <button type="button" className={`btn btn-sm ${datePreset === "today" ? "btn-primary" : "btn-outline"}`} onClick={() => applyDatePreset("today")}>Today</button>
+                    <button type="button" className={`btn btn-sm ${datePreset === "yesterday" ? "btn-primary" : "btn-outline"}`} onClick={() => applyDatePreset("yesterday")}>Yesterday</button>
+                    <button type="button" className={`btn btn-sm ${datePreset === "last7" ? "btn-primary" : "btn-outline"}`} onClick={() => applyDatePreset("last7")}>Last 7 Days</button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto", flexWrap: "wrap" }}>
+                  <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                    <ClockIcon size={14} /> From:
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={fromDate}
+                    onChange={(e) => { setFromDate(e.target.value); setDatePreset("custom"); }}
+                    style={{ padding: "6px 10px", fontSize: "0.8rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text)" }}
+                  />
+
+                  <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                    <ClockIcon size={14} /> To:
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={toDate}
+                    onChange={(e) => { setToDate(e.target.value); setDatePreset("custom"); }}
+                    style={{ padding: "6px 10px", fontSize: "0.8rem", borderRadius: "var(--radius)", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text)" }}
+                  />
+
+                  {(fromDate || toDate || searchQuery || statusFilter !== "all" || actionFilter !== "all" || datePreset !== "all") && (
+                    <button type="button" className="btn btn-outline btn-sm" onClick={resetAllFilters} style={{ fontSize: "0.8rem" }}>
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {filteredLogs.length === 0 ? (

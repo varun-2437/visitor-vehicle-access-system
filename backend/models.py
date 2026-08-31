@@ -44,6 +44,7 @@ class User(Base):
     flat_number = Column(String(20), nullable=True)  # Only for residents
     is_approved = Column(Boolean, nullable=False, default=True)  # Legacy compatibility
     approval_status = Column(String(20), nullable=False, default="approved")  # 'pending', 'approved', 'rejected'
+    rejection_reason = Column(String(255), nullable=True)  # Optional rejection reason from admin
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

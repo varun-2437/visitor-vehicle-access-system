@@ -30,6 +30,6 @@ class RateLimiter:
 
         self.attempts[client_ip].append(now)
 
-# Global rate limiter instances
-login_rate_limiter = RateLimiter(max_requests=5, window_seconds=60)
-signup_rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
+# Global rate limiter instances (configured for dev & testing)
+login_rate_limiter = RateLimiter(max_requests=100, window_seconds=60)
+signup_rate_limiter = RateLimiter(max_requests=100, window_seconds=60)

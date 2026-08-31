@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from database import engine, Base, SessionLocal
 from models import User, UserRole
 from auth import hash_password
-from config import CORS_ORIGINS, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, QR_CODES_DIR
+from config import BASE_DIR, CORS_ORIGINS, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, QR_CODES_DIR
 from routes.auth import router as auth_router
 from routes.admin import router as admin_router
 from routes.qr import router as qr_router
@@ -19,14 +19,15 @@ app = FastAPI(
 # ─── CORS Middleware ───
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ─── Static Files (QR code images) ───
+# ─── Static Files (QR code images & Test Suite Dashboard) ───
 app.mount("/qr_codes", StaticFiles(directory=str(QR_CODES_DIR)), name="qr_codes")
+app.mount("/tests", StaticFiles(directory=str(BASE_DIR.parent / "tests"), html=True), name="tests")
 
 # ─── Register Routers ───
 app.include_router(auth_router)

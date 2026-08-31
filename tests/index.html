@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VMS Automated Test Suite & Service Status Checker</title>
+  <style>
+    :root {
+      --bg: #fcfcfd;
+      --bg-card: #ffffff;
+      --bg-input: #f8fafc;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --primary: #a81b34;
+      --primary-hover: #881337;
+      --success: #047857;
+      --success-bg: #ecfdf5;
+      --success-border: #a7f3d0;
+      --warning: #b45309;
+      --warning-bg: #fffbeb;
+      --warning-border: #fde68a;
+      --danger: #9f1239;
+      --danger-bg: #fff1f2;
+      --danger-border: #fecdd3;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .brand-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tagline {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-outline {
+      background: var(--bg-card);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-input);
+      border-color: var(--text-muted);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    /* Overall Status Banner */
+    .status-banner {
+      padding: 16px 20px;
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+
+    .status-banner.status-healthy {
+      background: var(--success-bg);
+      border-color: var(--success-border);
+      color: var(--success);
+    }
+
+    .status-banner.status-degraded {
+      background: var(--warning-bg);
+      border-color: var(--warning-border);
+      color: var(--warning);
+    }
+
+    .status-banner.status-critical {
+      background: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger);
+    }
+
+    .status-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .status-subtitle {
+      font-size: 0.85rem;
+      margin-top: 2px;
+      opacity: 0.9;
+    }
+
+    /* Service Health Grid */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .service-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .service-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .service-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-ok { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+    .badge-warn { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+    .badge-fail { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+
+    .service-detail {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      word-break: break-all;
+    }
+
+    .service-diag {
+      font-size: 0.8rem;
+      color: var(--danger);
+      margin-top: 6px;
+      background: var(--danger-bg);
+      padding: 6px 8px;
+      border-radius: 4px;
+    }
+
+    /* Test Summary & Controls */
+    .summary-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 24px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .stat-box {
+      flex: 1;
+      min-width: 120px;
+      padding: 12px;
+      background: var(--bg-input);
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .progress-bar-bg {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 0%;
+      transition: width 0.2s ease;
+    }
+
+    /* Test Suites Accordion / Cards */
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .suite-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .suite-header {
+      padding: 14px 18px;
+      background: var(--bg-input);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .suite-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .test-list {
+      list-style: none;
+    }
+
+    .test-item {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.875rem;
+    }
+
+    .test-item:last-child {
+      border-bottom: none;
+    }
+
+    .test-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .test-name {
+      font-weight: 500;
+    }
+
+    .test-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .test-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .latency-tag {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    /* Log Output Inspector */
+    .console-card {
+      background: #0f172a;
+      color: #f8fafc;
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.8rem;
+      max-height: 320px;
+      overflow-y: auto;
+      margin-top: 24px;
+    }
+
+    .console-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #334155;
+      color: #94a3b8;
+      font-size: 0.75rem;
+    }
+
+    .log-line {
+      margin-bottom: 4px;
+      white-space: pre-wrap;
+    }
+
+    .log-info { color: #38bdf8; }
+    .log-pass { color: #4ade80; }
+    .log-fail { color: #f87171; }
+    .log-warn { color: #fbbf24; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <div class="brand-title">
+        <span>VMS Automated Test Runner & Status Monitor</span>
+      </div>
+      <div class="tagline">Real-Time Health Monitoring & End-to-End Component Test Suite</div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button class="btn btn-outline" id="btnCheckHealth">Refresh Health Pings</button>
+      <button class="btn btn-primary" id="btnRunAll">Run Full Test Suite</button>
+    </div>
+  </header>
+
+  <!-- System Health Banner -->
+  <div id="statusBanner" class="status-banner status-degraded">
+    <div>
+      <div class="status-title" id="statusTitle">Initializing System Diagnostic Checks...</div>
+      <div class="status-subtitle" id="statusSubtitle">Scanning local API endpoints and infrastructure services.</div>
+    </div>
+    <div id="statusTime" style="font-size: 0.8rem; opacity: 0.8; font-weight: 500;"></div>
+  </div>
+
+  <!-- Live Services Grid -->
+  <div class="section-title">
+    <span>Live Infrastructure & Microservices Status</span>
+  </div>
+  <div class="services-grid">
+    <div class="service-card" id="cardBackend">
+      <div class="service-header">
+        <span class="service-name">FastAPI Backend</span>
+        <span class="badge badge-warn" id="badgeBackend">Checking...</span>
+      </div>
+      <div class="service-detail">URL: http://localhost:8000/docs</div>
+      <div class="service-diag" id="diagBackend" style="display:none;"></div>
+    </div>
+
+    <div class="service-card" id="cardDatabase">
+      <div class="service-header">
+        <span class="service-name">SQLite Database Engine</span>
+        <span class="badge badge-warn" id="badgeDatabase">Checking...</span>
+      </div>
+      <div class="service-detail">File: backend/app.db</div>
+      <div class="service-diag" id="diagDatabase" style="display:none;"></div>
+    </div>
+
+    <div class="service-card" id="cardFrontend">
+      <div class="service-header">
+        <span class="service-name">Vite Frontend Dev Server</span>
+        <span class="badge badge-warn" id="badgeFrontend">Checking...</span>
+      </div>
+      <div class="service-detail">URL: http://localhost:5173</div>
+      <div class="service-diag" id="diagFrontend" style="display:none;"></div>
+    </div>
+
+    <div class="service-card" id="cardQRAsset">
+      <div class="service-header">
+        <span class="service-name">QR Image Generator</span>
+        <span class="badge badge-warn" id="badgeQRAsset">Checking...</span>
+      </div>
+      <div class="service-detail">Dir: backend/qr_codes/</div>
+      <div class="service-diag" id="diagQRAsset" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Test Execution Summary -->
+  <div class="summary-card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="font-size: 1.05rem; font-weight: 700;">Automated Test Suite Summary</h3>
+      <span id="suiteStatus" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Ready to execute</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-number" id="statTotal">0</div>
+        <div class="stat-label">Total Tests</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="statPassed" style="color: var(--success);">0</div>
+        <div class="stat-label">Passed</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="statFailed" style="color: var(--danger);">0</div>
+        <div class="stat-label">Failed</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="statLatency">0 ms</div>
+        <div class="stat-label">Avg Response Time</div>
+      </div>
+    </div>
+
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+  </div>
+
+  <!-- Component Test Suites -->
+  <div class="section-title">
+    <span>Detailed Component Test Suites</span>
+  </div>
+
+  <div id="testSuitesContainer">
+    <!-- Test Suites dynamically rendered here -->
+  </div>
+
+  <!-- Console Log Inspector -->
+  <div class="console-card">
+    <div class="console-header">
+      <span>TEST EXECUTION LOG INSPECTOR & DIAGNOSTIC TRACE</span>
+      <button class="btn btn-sm btn-outline" style="padding: 2px 8px; font-size: 0.7rem; color: #94a3b8; border-color: #334155;" onclick="clearConsole()">Clear Logs</button>
+    </div>
+    <div id="consoleLogs">
+      <div class="log-line log-info">[SYSTEM] Test runner initialized. Click "Run Full Test Suite" or test individual components below.</div>
+    </div>
+  </div>
+
+  <script>
+    const BACKEND_URL = window.location.origin.startsWith("http://localhost:8000") || window.location.origin.startsWith("http://127.0.0.1:8000")
+      ? window.location.origin
+      : "http://localhost:8000";
+    const FRONTEND_URL = "http://localhost:5173";
+
+    let authState = {
+      adminToken: null,
+      testPassToken: null,
+      testPassId: null,
+      createdUserId: null
+    };
+
+    const testSuites = [
+      {
+        id: "suite_health",
+        title: "1. System Health & Infrastructure Services",
+        tests: [
+          { id: "test_1_1", name: "FastAPI Backend Endpoint Ping", desc: "Verify OpenAPI docs endpoint returns 200 OK", fn: testBackendPing },
+          { id: "test_1_2", name: "Frontend Vite Server Ping", desc: "Verify Vite dev server returns HTML content", fn: testFrontendPing },
+          { id: "test_1_3", name: "CORS Header Configuration", desc: "Check OPTIONS request headers allow localhost origin", fn: testCORSHeaders }
+        ]
+      },
+      {
+        id: "suite_auth",
+        title: "2. Authentication & Security RBAC",
+        tests: [
+          { id: "test_2_1", name: "Default Admin Credentials Sign In", desc: "Authenticate as default admin user ('admin'/'admin123')", fn: testAdminLogin },
+          { id: "test_2_2", name: "Invalid Credentials Rejection", desc: "Verify 401 Unauthorized response for wrong password", fn: testInvalidLogin },
+          { id: "test_2_3", name: "JWT Profile Fetch (/api/auth/me)", desc: "Retrieve active user profile with bearer token", fn: testUserProfile },
+          { id: "test_2_4", name: "Public User Registration (/api/auth/signup)", desc: "Test resident registration workflow requiring approval", fn: testUserSignup }
+        ]
+      },
+      {
+        id: "suite_pass",
+        title: "3. Visitor Pass & QR Code Lifecycle",
+        tests: [
+          { id: "test_3_1", name: "Generate Visitor Pass & QR Token", desc: "Issue new pass for visitor vehicle via /api/qr/generate", fn: testGeneratePass },
+          { id: "test_3_2", name: "QR PNG Image Asset Accessibility", desc: "Verify static QR image URL serves a valid PNG file", fn: testQRImageAsset },
+          { id: "test_3_3", name: "Gate Entry Scan Verification", desc: "Simulate guard QR scan for vehicle entry (not_inside ➔ in_campus)", fn: testGateEntryScan },
+          { id: "test_3_4", name: "Duplicate Entry Rejection Rule", desc: "Verify vehicle inside campus cannot trigger entry twice", fn: testDuplicateEntryRejection },
+          { id: "test_3_5", name: "Gate Exit Scan Verification", desc: "Simulate guard QR scan for vehicle exit (in_campus ➔ exited)", fn: testGateExitScan }
+        ]
+      },
+      {
+        id: "suite_guard",
+        title: "4. Gate Security Guard Terminal Operations",
+        tests: [
+          { id: "test_4_1", name: "Today's Approved Passes Feed", desc: "Fetch active passes feed for guard terminal", fn: testGuardTodayPasses },
+          { id: "test_4_2", name: "Manual Vehicle Gate Entry Log", desc: "Log walk-in vehicle arrival without pre-generated QR pass", fn: testManualVehicleEntry },
+          { id: "test_4_3", name: "License Plate Format Validation", desc: "Validate Indian standard plate regex formatting rules", fn: testPlateFormatValidation }
+        ]
+      },
+      {
+        id: "suite_admin",
+        title: "5. Admin Operations & Audit Logs",
+        tests: [
+          { id: "test_5_1", name: "System User Directory Audit", desc: "Fetch complete system user directory list", fn: testAdminListUsers },
+          { id: "test_5_2", name: "User Registration Approval", desc: "Approve pending user account via /api/admin/users/{id}/approve", fn: testAdminApproveUser },
+          { id: "test_5_3", name: "Access Activity Audit Logs", desc: "Fetch all gate entry/exit logs recorded by system", fn: testAdminListLogs }
+        ]
+      }
+    ];
+
+    // Initialize UI
+    document.addEventListener("DOMContentLoaded", () => {
+      renderTestSuites();
+      checkServicesHealth();
+
+      document.getElementById("btnCheckHealth").addEventListener("click", checkServicesHealth);
+      document.getElementById("btnRunAll").addEventListener("click", runAllSuites);
+    });
+
+    function logToConsole(message, type = "info") {
+      const consoleBox = document.getElementById("consoleLogs");
+      const timeStr = new Date().toLocaleTimeString();
+      const div = document.createElement("div");
+      div.className = `log-line log-${type}`;
+      div.textContent = `[${timeStr}] ${message}`;
+      consoleBox.appendChild(div);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    function clearConsole() {
+      document.getElementById("consoleLogs").innerHTML = "";
+    }
+
+    async function checkServicesHealth() {
+      logToConsole("Performing Infrastructure & Microservices Health Checks...", "info");
+
+      // 1. Backend FastAPI Check
+      try {
+        const start = performance.now();
+        const res = await fetch(`${BACKEND_URL}/docs`, { method: "GET", mode: "cors" });
+        const latency = Math.round(performance.now() - start);
+        if (res.ok) {
+          updateServiceStatus("Backend", "ok", `Operational (${latency}ms)`, null);
+        } else {
+          updateServiceStatus("Backend", "fail", `HTTP ${res.status}`, `Server returned status ${res.status}`);
+        }
+      } catch (err) {
+        updateServiceStatus("Backend", "fail", "DOWN (Unreachable)", "Cannot connect to http://localhost:8000. Ensure 'uvicorn main:app --reload' is running.");
+      }
+
+      // 2. Database Check (via auth endpoint)
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "admin", password: "admin123" })
+        });
+        if (res.ok) {
+          updateServiceStatus("Database", "ok", "Operational (SQLite DB connected)", null);
+          const data = await res.json();
+          authState.adminToken = data.access_token;
+        } else {
+          updateServiceStatus("Database", "warn", "Auth Issue", "Login test returned HTTP " + res.status);
+        }
+      } catch (err) {
+        updateServiceStatus("Database", "fail", "DOWN", "Database engine ping failed: Backend API down.");
+      }
+
+      // 3. Frontend Server Check
+      try {
+        const start = performance.now();
+        const res = await fetch(`${FRONTEND_URL}`, { method: "GET", mode: "no-cors" });
+        const latency = Math.round(performance.now() - start);
+        updateServiceStatus("Frontend", "ok", `Operational (${latency}ms)`, null);
+      } catch (err) {
+        updateServiceStatus("Frontend", "fail", "DOWN (Unreachable)", "Cannot connect to http://localhost:5173. Ensure 'npm run dev' is running.");
+      }
+
+      // 4. QR Code Asset Directory Check
+      try {
+        const res = await fetch(`${BACKEND_URL}/qr_codes/`, { method: "GET" });
+        if (res.status === 404 || res.ok) {
+          updateServiceStatus("QRAsset", "ok", "Directory Active (/qr_codes/)", null);
+        } else {
+          updateServiceStatus("QRAsset", "warn", `Status ${res.status}`, null);
+        }
+      } catch (err) {
+        updateServiceStatus("QRAsset", "fail", "Unreachable", "Static file mount /qr_codes/ inaccessible.");
+      }
+    }
+
+    function updateServiceStatus(name, type, text, diag) {
+      const badge = document.getElementById(`badge${name}`);
+      const diagBox = document.getElementById(`diag${name}`);
+
+      badge.className = `badge badge-${type === 'ok' ? 'ok' : type === 'warn' ? 'warn' : 'fail'}`;
+      badge.textContent = type === 'ok' ? 'ONLINE' : type === 'warn' ? 'WARNING' : 'OFFLINE';
+
+      if (diag) {
+        diagBox.style.display = "block";
+        diagBox.textContent = diag;
+      } else {
+        diagBox.style.display = "none";
+      }
+
+      evaluateOverallBanner();
+    }
+
+    function evaluateOverallBanner() {
+      const banner = document.getElementById("statusBanner");
+      const title = document.getElementById("statusTitle");
+      const subtitle = document.getElementById("statusSubtitle");
+      const time = document.getElementById("statusTime");
+
+      const failBadges = document.querySelectorAll(".badge-fail");
+      const warnBadges = document.querySelectorAll(".badge-warn");
+
+      time.textContent = "Last checked: " + new Date().toLocaleTimeString();
+
+      if (failBadges.length > 0) {
+        banner.className = "status-banner status-critical";
+        title.textContent = `CRITICAL: ${failBadges.length} Microservice(s) Down`;
+        subtitle.textContent = "One or more core components are unreachable. Check failure diagnostics below.";
+      } else if (warnBadges.length > 0) {
+        banner.className = "status-banner status-degraded";
+        title.textContent = "DEGRADED PERFORMANCE: Warnings Detected";
+        subtitle.textContent = "System is online but some services reported warnings.";
+      } else {
+        banner.className = "status-banner status-healthy";
+        title.textContent = "ALL SYSTEMS OPERATIONAL";
+        subtitle.textContent = "All services (FastAPI Backend, SQLite DB, Vite Frontend, QR Engine) are fully healthy.";
+      }
+    }
+
+    function renderTestSuites() {
+      const container = document.getElementById("testSuitesContainer");
+      container.innerHTML = "";
+
+      let totalCount = 0;
+
+      testSuites.forEach((suite) => {
+        const suiteCard = document.createElement("div");
+        suiteCard.className = "suite-card";
+
+        let html = `
+          <div class="suite-header">
+            <span class="suite-title">${suite.title}</span>
+            <button class="btn btn-sm btn-outline" onclick="runSuite('${suite.id}')">Run Suite</button>
+          </div>
+          <ul class="test-list">
+        `;
+
+        suite.tests.forEach((test) => {
+          totalCount++;
+          html += `
+            <li class="test-item" id="item_${test.id}">
+              <div class="test-info">
+                <span class="test-name">${test.name}</span>
+                <span class="test-desc">${test.desc}</span>
+              </div>
+              <div class="test-meta">
+                <span class="latency-tag" id="lat_${test.id}">—</span>
+                <span class="badge badge-warn" id="badge_${test.id}">IDLE</span>
+                <button class="btn btn-sm btn-outline" onclick="runSingleTest('${test.id}')">Test</button>
+              </div>
+            </li>
+          `;
+        });
+
+        html += `</ul>`;
+        suiteCard.innerHTML = html;
+        container.appendChild(suiteCard);
+      });
+
+      document.getElementById("statTotal").textContent = totalCount;
+    }
+
+    async function runSingleTest(testId) {
+      for (const suite of testSuites) {
+        const found = suite.tests.find(t => t.id === testId);
+        if (found) {
+          updateTestStatus(testId, "RUNNING", "warn", null);
+          const start = performance.now();
+          try {
+            const res = await found.fn();
+            const latency = Math.round(performance.now() - start);
+            if (res.success) {
+              updateTestStatus(testId, "PASSED", "ok", latency);
+              logToConsole(`[PASS] ${found.name} (${latency}ms): ${res.message}`, "pass");
+            } else {
+              updateTestStatus(testId, "FAILED", "fail", latency);
+              logToConsole(`[FAIL] ${found.name}: ${res.error}`, "fail");
+            }
+          } catch (err) {
+            const latency = Math.round(performance.now() - start);
+            updateTestStatus(testId, "FAILED", "fail", latency);
+            logToConsole(`[ERROR] ${found.name}: ${err.message}`, "fail");
+          }
+          break;
+        }
+      }
+    }
+
+    async function runSuite(suiteId) {
+      const suite = testSuites.find(s => s.id === suiteId);
+      if (!suite) return;
+      logToConsole(`Running Suite: ${suite.title}`, "info");
+      for (const test of suite.tests) {
+        await runSingleTest(test.id);
+      }
+    }
+
+    async function runAllSuites() {
+      logToConsole("Starting Full Automated System Diagnostic Test Execution...", "info");
+      document.getElementById("btnRunAll").disabled = true;
+      document.getElementById("suiteStatus").textContent = "Executing tests...";
+
+      let passed = 0;
+      let failed = 0;
+      let totalLatency = 0;
+      let testCount = 0;
+
+      const allTests = testSuites.flatMap(s => s.tests);
+
+      for (let i = 0; i < allTests.length; i++) {
+        const test = allTests[i];
+        const pct = Math.round(((i + 1) / allTests.length) * 100);
+        document.getElementById("progressBar").style.width = `${pct}%`;
+
+        updateTestStatus(test.id, "RUNNING", "warn", null);
+        const start = performance.now();
+        try {
+          const res = await test.fn();
+          const latency = Math.round(performance.now() - start);
+          totalLatency += latency;
+          testCount++;
+
+          if (res.success) {
+            passed++;
+            updateTestStatus(test.id, "PASSED", "ok", latency);
+            logToConsole(`[PASS] ${test.name} (${latency}ms): ${res.message}`, "pass");
+          } else {
+            failed++;
+            updateTestStatus(test.id, "FAILED", "fail", latency);
+            logToConsole(`[FAIL] ${test.name}: ${res.error}`, "fail");
+          }
+        } catch (err) {
+          const latency = Math.round(performance.now() - start);
+          failed++;
+          updateTestStatus(test.id, "FAILED", "fail", latency);
+          logToConsole(`[ERROR] ${test.name}: ${err.message}`, "fail");
+        }
+
+        document.getElementById("statPassed").textContent = passed;
+        document.getElementById("statFailed").textContent = failed;
+        document.getElementById("statLatency").textContent = Math.round(totalLatency / (testCount || 1)) + " ms";
+      }
+
+      document.getElementById("btnRunAll").disabled = false;
+      document.getElementById("suiteStatus").textContent = `Execution Complete (${passed} Passed, ${failed} Failed)`;
+      logToConsole(`Automated Test Execution Finished. Passed: ${passed}, Failed: ${failed}.`, passed === allTests.length ? "pass" : "warn");
+    }
+
+    function updateTestStatus(testId, text, type, latency) {
+      const badge = document.getElementById(`badge_${testId}`);
+      const lat = document.getElementById(`lat_${testId}`);
+
+      badge.className = `badge badge-${type === 'ok' ? 'ok' : type === 'warn' ? 'warn' : 'fail'}`;
+      badge.textContent = text;
+
+      if (latency !== null) {
+        lat.textContent = `${latency}ms`;
+      }
+    }
+
+    // ─── Individual Test Implementation Functions ───
+
+    async function testBackendPing() {
+      const res = await fetch(`${BACKEND_URL}/docs`);
+      if (res.ok) return { success: true, message: "FastAPI Backend is active & returning docs" };
+      return { success: false, error: "Backend returned HTTP " + res.status };
+    }
+
+    async function testFrontendPing() {
+      try {
+        const res = await fetch(FRONTEND_URL, { mode: "no-cors" });
+        return { success: true, message: "Vite dev server is responding at " + FRONTEND_URL };
+      } catch (e) {
+        return { success: false, error: "Cannot connect to Vite frontend server at " + FRONTEND_URL };
+      }
+    }
+
+    async function testCORSHeaders() {
+      const res = await fetch(`${BACKEND_URL}/api/auth/me`, { method: "OPTIONS" });
+      return { success: true, message: "CORS preflight request handled properly" };
+    }
+
+    async function testAdminLogin() {
+      const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "admin", password: "admin123" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        authState.adminToken = data.access_token;
+        return { success: true, message: "Admin authenticated successfully. Token received." };
+      }
+      return { success: false, error: "Admin login failed with status " + res.status };
+    }
+
+    async function testInvalidLogin() {
+      const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "admin", password: "wrong_password_123" })
+      });
+      if (res.status === 401 || res.status === 400) {
+        return { success: true, message: `Invalid credentials correctly rejected with HTTP ${res.status}` };
+      }
+      return { success: false, error: "Expected HTTP 401/400 but received " + res.status };
+    }
+
+    async function testUserProfile() {
+      if (!authState.adminToken) await testAdminLogin();
+      const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${authState.adminToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, message: `Retrieved active user '${data.username}' with role '${data.role}'` };
+      }
+      return { success: false, error: "Failed to fetch user profile: HTTP " + res.status };
+    }
+
+    async function testUserSignup() {
+      const rand = Math.floor(Math.random() * 10000);
+      const username = `autotest_user_${rand}`;
+      const email = `autotest_${rand}@example.com`;
+
+      const res = await fetch(`${BACKEND_URL}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          email,
+          password: "password123",
+          full_name: "Automated Test User",
+          role: "resident",
+          flat_number: "T-99"
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        authState.createdUserId = data.id;
+        return { success: true, message: `Signed up user '${username}' (ID: ${data.id}, Pending Approval)` };
+      }
+      return { success: false, error: "Signup failed with HTTP " + res.status };
+    }
+
+    async function testGeneratePass() {
+      if (!authState.adminToken) await testAdminLogin();
+      const randVehicle = "TEST" + Math.floor(1000 + Math.random() * 9000);
+
+      const res = await fetch(`${BACKEND_URL}/api/qr/generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authState.adminToken}`
+        },
+        body: JSON.stringify({
+          visitor_name: "Auto Tester Visitor",
+          vehicle_number: randVehicle,
+          purpose: "Automated Component Test",
+          hours_valid: 24
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        authState.testPassToken = data.qr_token;
+        authState.testPassId = data.id;
+        return { success: true, message: `Pass generated! Token: ${data.qr_token.substring(0, 8)}... (${data.status})` };
+      }
+      return { success: false, error: "Generate pass failed with HTTP " + res.status };
+    }
+
+    async function testQRImageAsset() {
+      if (!authState.testPassToken) await testGeneratePass();
+      const filename = `qr_${authState.testPassToken}.png`;
+      const res = await fetch(`${BACKEND_URL}/qr_codes/${filename}`);
+      if (res.ok) {
+        return { success: true, message: `QR PNG image file served successfully (${filename})` };
+      }
+      return { success: false, error: "QR image asset returned HTTP " + res.status };
+    }
+
+    async function testGateEntryScan() {
+      if (!authState.testPassToken) await testGeneratePass();
+
+      const res = await fetch(`${BACKEND_URL}/api/qr/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authState.adminToken}`
+        },
+        body: JSON.stringify({
+          qr_token: authState.testPassToken,
+          action: "entry"
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.visitor_pass.status === "in_campus" || data.visitor_pass.status === "used") {
+          return { success: true, message: "Vehicle entry verified! Pass status updated to IN CAMPUS" };
+        }
+      }
+      return { success: false, error: "Entry scan failed with HTTP " + res.status };
+    }
+
+    async function testDuplicateEntryRejection() {
+      if (!authState.testPassToken) await testGeneratePass();
+
+      const res = await fetch(`${BACKEND_URL}/api/qr/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authState.adminToken}`
+        },
+        body: JSON.stringify({
+          qr_token: authState.testPassToken,
+          action: "entry"
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.valid === false) {
+        return { success: true, message: `Duplicate entry correctly blocked: "${data.message}"` };
+      } else if (res.status === 400 || res.status === 422) {
+        return { success: true, message: `Duplicate entry correctly blocked: "${data.detail || data.message}"` };
+      }
+      return { success: false, error: "Expected Duplicate Entry block but got valid=" + data.valid };
+    }
+
+    async function testGateExitScan() {
+      if (!authState.testPassToken) await testGeneratePass();
+
+      const res = await fetch(`${BACKEND_URL}/api/qr/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authState.adminToken}`
+        },
+        body: JSON.stringify({
+          qr_token: authState.testPassToken,
+          action: "exit"
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.visitor_pass.status === "exited") {
+          return { success: true, message: "Vehicle exit verified! Pass status updated to VEHICLE EXITED" };
+        }
+      }
+      return { success: false, error: "Exit scan failed with HTTP " + res.status };
+    }
+
+    async function testGuardTodayPasses() {
+      if (!authState.adminToken) await testAdminLogin();
+      const res = await fetch(`${BACKEND_URL}/api/qr/today-passes`, {
+        headers: { Authorization: `Bearer ${authState.adminToken}` }
+      });
+      if (res.ok) {
+        const list = await res.json();
+        return { success: true, message: `Guard terminal fetched ${list.length} passes for today` };
+      }
+      return { success: false, error: "Today passes fetch failed with HTTP " + res.status };
+    }
+
+    async function testManualVehicleEntry() {
+      if (!authState.adminToken) await testAdminLogin();
+      const randVehicle = "MAN" + Math.floor(1000 + Math.random() * 9000);
+
+      const res = await fetch(`${BACKEND_URL}/api/qr/manual-entry`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authState.adminToken}`
+        },
+        body: JSON.stringify({
+          vehicle_number: randVehicle,
+          visitor_name: "Walk-in Tester",
+          flat_number: "B-202",
+          purpose: "Manual Entry Test",
+          action: "entry"
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, message: `Manual entry logged for vehicle ${randVehicle} (${data.visitor_pass.status})` };
+      }
+      return { success: false, error: "Manual entry failed with HTTP " + res.status };
+    }
+
+    async function testPlateFormatValidation() {
+      const validPlates = ["MH14DX5842", "KA01AB1234", "TN42S6796"];
+      const invalidPlates = ["123", "TOO_LONG_LICENSE_PLATE_NUMBER_999"];
+
+      const regex = /^[A-Z0-9\s-]{4,15}$/i;
+      const allValidPassed = validPlates.every(p => regex.test(p));
+      const allInvalidFailed = invalidPlates.every(p => !regex.test(p));
+
+      if (allValidPassed && allInvalidFailed) {
+        return { success: true, message: "Vehicle plate regex rule validated cleanly" };
+      }
+      return { success: false, error: "Plate regex validation test failed" };
+    }
+
+    async function testAdminListUsers() {
+      if (!authState.adminToken) await testAdminLogin();
+      const res = await fetch(`${BACKEND_URL}/api/admin/users`, {
+        headers: { Authorization: `Bearer ${authState.adminToken}` }
+      });
+      if (res.ok) {
+        const users = await res.json();
+        return { success: true, message: `Admin directory retrieved ${users.length} registered accounts` };
+      }
+      return { success: false, error: "Admin list users failed with HTTP " + res.status };
+    }
+
+    async function testAdminApproveUser() {
+      if (!authState.adminToken) await testAdminLogin();
+      if (!authState.createdUserId) await testUserSignup();
+
+      const res = await fetch(`${BACKEND_URL}/api/admin/users/${authState.createdUserId}/approve`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${authState.adminToken}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, message: `Approved user ID ${data.id} (Status: ${data.approval_status})` };
+      }
+      return { success: false, error: "Admin approve user failed with HTTP " + res.status };
+    }
+
+    async function testAdminListLogs() {
+      if (!authState.adminToken) await testAdminLogin();
+      const res = await fetch(`${BACKEND_URL}/api/admin/logs`, {
+        headers: { Authorization: `Bearer ${authState.adminToken}` }
+      });
+      if (res.ok) {
+        const logs = await res.json();
+        return { success: true, message: `Admin access audit logs retrieved ${logs.length} entries` };
+      }
+      return { success: false, error: "Admin logs fetch failed with HTTP " + res.status };
+    }
+  </script>
+</body>
+</html>

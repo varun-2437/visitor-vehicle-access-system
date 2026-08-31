@@ -1,47 +1,57 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 /* ─── Reset & Base ─── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root, [data-theme="dark"] {
-  --bg: #0f1117;
-  --bg-card: #1a1d27;
-  --bg-input: #252833;
-  --border: #2e3140;
-  --text: #e4e6ed;
-  --text-muted: #8b8fa3;
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
-  --danger: #ef4444;
-  --danger-hover: #f87171;
-  --success: #22c55e;
+:root, [data-theme="light"] {
+  --bg: #fcfcfd;
+  --bg-card: #ffffff;
+  --bg-input: #f8fafc;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --primary: #a81b34;
+  --primary-hover: #881337;
+  --danger: #9f1239;
+  --danger-hover: #881337;
+  --success: #047857;
+  --warning: #b45309;
+  --radius: 8px;
+}
+
+[data-theme="dark"] {
+  --bg: #0b0f17;
+  --bg-card: #131b2e;
+  --bg-input: #1e293b;
+  --border: #334155;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --primary: #e11d48;
+  --primary-hover: #f43f5e;
+  --danger: #f43f5e;
+  --danger-hover: #fb7185;
+  --success: #10b981;
   --warning: #f59e0b;
   --radius: 8px;
 }
 
-[data-theme="light"] {
-  --bg: #f3f4f6;
-  --bg-card: #ffffff;
-  --bg-input: #f9fafb;
-  --border: #e5e7eb;
-  --text: #111827;
-  --text-muted: #6b7280;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --success: #16a34a;
-  --warning: #d97706;
-  --radius: 8px;
-}
-
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+h1, h2, h3, h4, h5, h6, .brand-title {
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+code, kbd, pre, samp {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
 }
 
 .brand-logo-container {
@@ -176,23 +186,29 @@ body {
 /* ─── Badges ─── */
 .badge {
   display: inline-block;
-  padding: 2px 10px;
+  padding: 3px 10px;
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
-.badge-admin { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
-.badge-resident { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-.badge-guard { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.badge-not_inside, .badge-approved, .badge-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.badge-in_campus, .badge-used { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-.badge-exited { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
-.badge-expired { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-.badge-entry { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-.badge-exit { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+[data-theme="light"] .badge-admin { background: rgba(168, 27, 52, 0.08); color: #a81b34; border: 1px solid rgba(168, 27, 52, 0.2); }
+[data-theme="light"] .badge-resident { background: rgba(71, 85, 105, 0.08); color: #334155; border: 1px solid rgba(71, 85, 105, 0.2); }
+[data-theme="light"] .badge-guard { background: rgba(180, 83, 9, 0.08); color: #b45309; border: 1px solid rgba(180, 83, 9, 0.2); }
+[data-theme="light"] .badge-not_inside, [data-theme="light"] .badge-pending { background: rgba(180, 83, 9, 0.08); color: #b45309; border: 1px solid rgba(180, 83, 9, 0.2); }
+[data-theme="light"] .badge-in_campus, [data-theme="light"] .badge-approved, [data-theme="light"] .badge-used, [data-theme="light"] .badge-entry { background: rgba(4, 120, 87, 0.08); color: #047857; border: 1px solid rgba(4, 120, 87, 0.2); }
+[data-theme="light"] .badge-exited { background: rgba(71, 85, 105, 0.08); color: #475569; border: 1px solid rgba(71, 85, 105, 0.2); }
+[data-theme="light"] .badge-expired, [data-theme="light"] .badge-exit { background: rgba(168, 27, 52, 0.08); color: #a81b34; border: 1px solid rgba(168, 27, 52, 0.2); }
+
+[data-theme="dark"] .badge-admin { background: rgba(225, 29, 72, 0.15); color: #fb7185; }
+[data-theme="dark"] .badge-resident { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+[data-theme="dark"] .badge-guard { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+[data-theme="dark"] .badge-not_inside, [data-theme="dark"] .badge-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+[data-theme="dark"] .badge-in_campus, [data-theme="dark"] .badge-approved, [data-theme="dark"] .badge-used, [data-theme="dark"] .badge-entry { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+[data-theme="dark"] .badge-exited { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+[data-theme="dark"] .badge-expired, [data-theme="dark"] .badge-exit { background: rgba(225, 29, 72, 0.15); color: #fb7185; }
 
 /* ─── Buttons ─── */
 .btn {
@@ -431,7 +447,7 @@ body {
 }
 
 .data-table tr:hover td {
-  background: rgba(99, 102, 241, 0.03);
+  background: rgba(168, 27, 52, 0.03);
 }
 
 /* ─── Create Form ─── */
@@ -519,19 +535,19 @@ body {
 
 .paste-zone {
   border: 2px dashed var(--primary);
-  background: rgba(99, 102, 241, 0.05);
+  background: rgba(168, 27, 52, 0.04);
   border-radius: var(--radius);
   padding: 16px;
   text-align: center;
   font-size: 0.85rem;
-  color: var(--primary-hover);
+  color: var(--primary);
   cursor: pointer;
   outline: none;
   transition: background 0.15s;
 }
 
 .paste-zone:focus, .paste-zone:hover {
-  background: rgba(99, 102, 241, 0.12);
+  background: rgba(168, 27, 52, 0.08);
 }
 
 
@@ -650,6 +666,71 @@ body {
   font-family: monospace;
   font-weight: 600;
   color: var(--primary-hover);
+}
+
+/* ─── Gate Action Toggle Buttons ─── */
+.gate-action-toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gate-action-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.gate-action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-action-toggle {
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-action-toggle:hover {
+  border-color: var(--primary);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.btn-action-toggle.active-entry {
+  background: rgba(4, 120, 87, 0.08);
+  color: #047857;
+  border-color: #047857;
+  box-shadow: none;
+}
+
+.btn-action-toggle.active-exit {
+  background: rgba(168, 27, 52, 0.08);
+  color: #a81b34;
+  border-color: #a81b34;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .btn-action-toggle.active-entry {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: #10b981;
+}
+
+[data-theme="dark"] .btn-action-toggle.active-exit {
+  background: rgba(225, 29, 72, 0.15);
+  color: #fb7185;
+  border-color: #e11d48;
 }
 
 /* ─── Toast / Snackbar Notifications ─── */
@@ -775,4 +856,120 @@ body {
   .data-table { font-size: 0.8rem; }
   .data-table th, .data-table td { padding: 8px 6px; }
   .toast-container { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+}
+
+/* ─── Exact Campus GIF Background Overlay (my.amrita style) ─── */
+.login-container {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  overflow: hidden;
+  transition: background-color 0.3s ease;
+}
+
+[data-theme="light"] .login-container {
+  background: radial-gradient(circle at center, #ffffff 0%, #f3f4f6 100%);
+}
+
+[data-theme="dark"] .login-container {
+  background: radial-gradient(circle at center, #0f172a 0%, #070a12 100%);
+}
+
+.campus-sketch-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.dashboard,
+.login-card {
+  position: relative;
+  z-index: 1;
+}
+
+.sketch-gif {
+  position: absolute;
+  max-width: 480px;
+  height: auto;
+  pointer-events: none;
+  transition: all 0.4s ease;
+}
+
+/* Light mode: Warm rose-crimson sketch blending matching my.amrita style */
+[data-theme="light"] .sketch-gif {
+  opacity: 0.5;
+  filter: sepia(100%) hue-rotate(315deg) saturate(240%) contrast(100%);
+}
+
+/* Dark mode: Soft glowing rose-crimson sketch blending */
+[data-theme="dark"] .sketch-gif {
+  opacity: 0.5;
+  filter: invert(100%) hue-rotate(300deg) brightness(1.2) drop-shadow(0 0 12px rgba(225, 29, 72, 0.35));
+}
+
+.gif-top-left {
+  top: 0;
+  left: 0;
+  max-width: 350px;
+}
+
+.gif-top-right {
+  top: 0;
+  right: 0;
+  max-width: 350px;
+}
+
+.gif-mid-left {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  max-width: 300px;
+}
+
+.gif-mid-right {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  max-width: 300px;
+}
+
+.gif-bottom-left {
+  bottom: 0;
+  left: 0;
+  max-width: 350px;
+}
+
+.gif-bottom-right {
+  bottom: 0;
+  right: 0;
+  max-width: 350px;
+}
+
+@media (max-width: 1200px) {
+  .sketch-gif {
+    max-width: 320px;
+    opacity: 0.3;
+  }
+}
+
+@media (max-width: 768px) {
+  .sketch-gif {
+    display: none;
+  }
+}
+
+.login-card {
+  position: relative;
+  z-index: 10;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
 }

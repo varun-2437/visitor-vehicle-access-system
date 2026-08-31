@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User, UserRole
@@ -19,10 +20,13 @@ def register_user(
     if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Only admins can register new users")
 
-    # Check for existing username or email
-    if db.query(User).filter(User.username == user_data.username).first():
+    clean_username = user_data.username.strip().lower()
+    clean_email = user_data.email.strip().lower()
+
+    # Check for existing username or email case-insensitively
+    if db.query(User).filter(func.lower(User.username) == clean_username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
-    if db.query(User).filter(User.email == user_data.email).first():
+    if db.query(User).filter(func.lower(User.email) == clean_email).first():
         raise HTTPException(status_code=400, detail="Email already exists")
 
     # Validate role
@@ -30,10 +34,10 @@ def register_user(
         raise HTTPException(status_code=400, detail=f"Invalid role. Choose from: {[r.value for r in UserRole]}")
 
     new_user = User(
-        username=user_data.username,
-        email=user_data.email,
+        username=clean_username,
+        email=clean_email,
         hashed_password=hash_password(user_data.password),
-        full_name=user_data.full_name,
+        full_name=user_data.full_name.strip(),
         role=user_data.role,
         flat_number=user_data.flat_number,
     )
@@ -48,8 +52,11 @@ def signup_user(request: Request, user_data: UserCreate, db: Session = Depends(g
     """Public self-registration for residents/guards. Account requires admin approval before login."""
     signup_rate_limiter.check_rate_limit(request)
 
+    clean_username = user_data.username.strip().lower()
+    clean_email = user_data.email.strip().lower()
+
     # Check if existing user with username/email was previously rejected. If so, remove old rejected record so they can sign up again cleanly!
-    existing_user_by_name = db.query(User).filter(User.username == user_data.username).first()
+    existing_user_by_name = db.query(User).filter(func.lower(User.username) == clean_username).first()
     if existing_user_by_name:
         if existing_user_by_name.approval_status == "rejected":
             db.delete(existing_user_by_name)
@@ -57,7 +64,7 @@ def signup_user(request: Request, user_data: UserCreate, db: Session = Depends(g
         else:
             raise HTTPException(status_code=400, detail="Username already exists")
 
-    existing_user_by_email = db.query(User).filter(User.email == user_data.email).first()
+    existing_user_by_email = db.query(User).filter(func.lower(User.email) == clean_email).first()
     if existing_user_by_email:
         if existing_user_by_email.approval_status == "rejected":
             db.delete(existing_user_by_email)
@@ -69,10 +76,10 @@ def signup_user(request: Request, user_data: UserCreate, db: Session = Depends(g
         raise HTTPException(status_code=400, detail="Public sign up is allowed for Residents and Guards only")
 
     new_user = User(
-        username=user_data.username,
-        email=user_data.email,
+        username=clean_username,
+        email=clean_email,
         hashed_password=hash_password(user_data.password),
-        full_name=user_data.full_name,
+        full_name=user_data.full_name.strip(),
         role=user_data.role,
         flat_number=user_data.flat_number,
         is_approved=False,
@@ -89,7 +96,8 @@ def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db))
     """Authenticate user and return a JWT token. Rate limited to 5 attempts/min per IP."""
     login_rate_limiter.check_rate_limit(request)
 
-    user = db.query(User).filter(User.username == user_data.username).first()
+    clean_username = user_data.username.strip().lower()
+    user = db.query(User).filter(func.lower(User.username) == clean_username).first()
     if not user or not verify_password(user_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -98,9 +106,10 @@ def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db))
 
     # Enforce approval status checks
     if user.approval_status == "rejected":
+        reason_text = f" Reason: '{user.rejection_reason}'." if user.rejection_reason else ""
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account request was REJECTED by the Administrator. Please click 'Create Account' to sign up again from scratch.",
+            detail=f"Your account request was REJECTED by the Administrator.{reason_text} Please click 'Create Account' to sign up again from scratch.",
         )
 
     if user.approval_status == "pending" or not user.is_approved:

@@ -19,6 +19,14 @@ export default function Navbar() {
 
   if (!user) return null;
 
+  const roleHomeMap = {
+    admin: "/admin",
+    resident: "/resident",
+    guard: "/guard",
+  };
+
+  const homePath = roleHomeMap[user.role] || "/admin";
+
   const roleLabel = {
     admin: "System Admin",
     resident: "Resident",
@@ -36,11 +44,11 @@ export default function Navbar() {
       <OfflineBanner />
       <nav className="navbar">
       <div className="navbar-brand">
-        <Link to="/" className="brand-logo-container" title="Visitor Management System">
+        <Link to={homePath} className="brand-logo-container" title="Visitor Management System">
           <img src={vmsLogo} alt="VMS Logo" className="brand-logo-img" />
         </Link>
         <div className="breadcrumb-container" style={{ borderLeft: "1px solid var(--border)", paddingLeft: "14px" }}>
-          <Link to="/" className="breadcrumb-item">Home</Link>
+          <Link to={homePath} className="breadcrumb-item">Home</Link>
           <span className="breadcrumb-separator">›</span>
           <span className="breadcrumb-item active">{pageTitleMap[location.pathname] || "Dashboard"}</span>
         </div>
@@ -52,8 +60,8 @@ export default function Navbar() {
 
       <div className="navbar-info">
         <ThemeToggle />
-        <span className="navbar-user">
-          {user.full_name} <span className="badge">{roleLabel[user.role]}</span>
+        <span className="navbar-user" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <strong>{user.full_name}</strong> <span className={`badge badge-${user.role}`}>{user.role.toUpperCase()}</span>
         </span>
         <button className="btn btn-outline btn-sm" onClick={handleLogout}>
           Logout

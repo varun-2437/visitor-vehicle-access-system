@@ -19,6 +19,19 @@ from config import QR_CODES_DIR
 router = APIRouter(prefix="/api/qr", tags=["QR Codes"])
 
 
+def generate_qr_code_file(qr_token: str) -> str:
+    """Helper to generate a QR PNG image file from a UUID token string."""
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(qr_token)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+
+    filename = f"qr_{qr_token}.png"
+    filepath = os.path.join(QR_CODES_DIR, filename)
+    qr_img.save(filepath)
+    return f"/qr_codes/{filename}"
+
+
 @router.post("/generate", response_model=VisitorPassResponse)
 def generate_visitor_pass(
     data: VisitorPassCreate,
@@ -41,16 +54,7 @@ def generate_visitor_pass(
     db.refresh(visitor_pass)
 
     # Generate QR code image
-    qr = qrcode.QRCode(version=1, box_size=10, border=4)
-    qr.add_data(visitor_pass.qr_token)
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-
-    filename = f"qr_{visitor_pass.qr_token}.png"
-    filepath = os.path.join(QR_CODES_DIR, filename)
-    qr_img.save(filepath)
-
-    visitor_pass.qr_image_path = f"/qr_codes/{filename}"
+    visitor_pass.qr_image_path = generate_qr_code_file(visitor_pass.qr_token)
     db.commit()
     db.refresh(visitor_pass)
 
@@ -170,6 +174,11 @@ def manual_vehicle_entry(
     db.commit()
     db.refresh(visitor_pass)
 
+    # Always generate QR code image for manual gate entry
+    visitor_pass.qr_image_path = generate_qr_code_file(visitor_pass.qr_token)
+    db.commit()
+    db.refresh(visitor_pass)
+
     # Create access log
     log = AccessLog(
         visitor_pass_id=visitor_pass.id,
@@ -192,11 +201,11 @@ def get_today_passes(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin")),
 ):
-    """List all visitor passes created today. Guards and admins only."""
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    """List all visitor passes created in the last 24 hours. Guards and admins only."""
+    since = datetime.utcnow() - timedelta(hours=24)
     passes = (
         db.query(VisitorPass)
-        .filter(VisitorPass.created_at >= today_start)
+        .filter(VisitorPass.created_at >= since)
         .order_by(VisitorPass.created_at.desc())
         .all()
     )
@@ -210,11 +219,11 @@ def get_today_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin")),
 ):
-    """List all vehicle entry and exit access logs recorded today. Guards and admins only."""
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    """List all vehicle entry and exit access logs recorded in the last 24 hours. Guards and admins only."""
+    since = datetime.utcnow() - timedelta(hours=24)
     logs = (
         db.query(AccessLog)
-        .filter(AccessLog.timestamp >= today_start)
+        .filter(AccessLog.timestamp >= since)
         .order_by(AccessLog.timestamp.desc())
         .all()
     )

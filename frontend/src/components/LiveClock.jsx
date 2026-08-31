@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { CalendarIcon, ClockIcon } from "./Icons";
 
 export default function LiveClock() {
   const [time, setTime] = useState(new Date());
@@ -24,9 +25,13 @@ export default function LiveClock() {
   });
 
   return (
-    <div className="live-clock" title="Current Real-Time Date & Clock">
-      <span className="clock-date">📅 {formattedDate}</span>
-      <span className="clock-time">⏰ {formattedTime}</span>
+    <div className="live-clock" title="Current Real-Time Date & Clock" style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+      <span className="clock-date" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+        <CalendarIcon size={14} /> {formattedDate}
+      </span>
+      <span className="clock-time" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+        <ClockIcon size={14} /> {formattedTime}
+      </span>
     </div>
   );
 }

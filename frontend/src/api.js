@@ -1,7 +1,12 @@
 import axios from "axios";
 
+const getBaseURL = () => {
+  const hostname = window.location.hostname || "localhost";
+  return `http://${hostname}:8000`;
+};
+
 const API = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: getBaseURL(),
 });
 
 // Attach JWT token to every request

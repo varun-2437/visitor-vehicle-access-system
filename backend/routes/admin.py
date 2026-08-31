@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from database import get_db
 from models import User, AccessLog, UserRole
-from schemas import UserResponse, AccessLogResponse
+from schemas import UserResponse, AccessLogResponse, UserRejectRequest
 from auth import require_role
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -15,7 +15,7 @@ def list_users(
     current_user: User = Depends(require_role("admin")),
 ):
     """List all users. Admin only. Passwords are never exposed."""
-    return db.query(User).order_by(User.created_at.desc()).all()
+    return db.query(User).order_by(User.id.asc()).all()
 
 
 @router.delete("/users/{user_id}")
@@ -34,7 +34,7 @@ def delete_user(
 
     db.delete(user)
     db.commit()
-    return {"message": f"User '{user.username}' deleted successfully"}
+    return {"message": "User deleted successfully"}
 
 
 @router.put("/users/{user_id}/approve", response_model=UserResponse)
@@ -50,6 +50,7 @@ def approve_user(
 
     user.is_approved = True
     user.approval_status = "approved"
+    user.rejection_reason = None
     db.commit()
     db.refresh(user)
     return user
@@ -58,16 +59,20 @@ def approve_user(
 @router.put("/users/{user_id}/reject", response_model=UserResponse)
 def reject_user(
     user_id: int,
+    reject_data: Optional[UserRejectRequest] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin")),
 ):
-    """Reject a user registration request. Admin only."""
+    """Reject a user registration request with optional rejection reason. Admin only."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    reason = reject_data.rejection_reason if reject_data and reject_data.rejection_reason else "Application details could not be verified by Admin."
+
     user.is_approved = False
     user.approval_status = "rejected"
+    user.rejection_reason = reason
     db.commit()
     db.refresh(user)
     return user
