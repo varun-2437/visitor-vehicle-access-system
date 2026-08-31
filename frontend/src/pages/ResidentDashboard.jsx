@@ -426,39 +426,41 @@ export default function ResidentDashboard() {
           {filteredPasses.length === 0 ? (
             <p className="empty-state">No matching visitor passes found.</p>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Visitor</th>
-                  <th>Vehicle</th>
-                  <th>Purpose</th>
-                  <th>Vehicle Status Stage</th>
-                  <th>Created Date & Time</th>
-                  <th>Action / QR Pass</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPasses.map((p) => (
-                  <tr key={p.id} style={{ cursor: "pointer" }} onClick={() => setSelectedPass(p)}>
-                    <td><strong>{p.visitor_name}</strong></td>
-                    <td><code>{p.vehicle_number || "—"}</code></td>
-                    <td>{p.purpose || "—"}</td>
-                    <td>{renderStatusBadge(p.status)}</td>
-                    <td>{formatDateTime(p.created_at)}</td>
-                    <td>
-                      <button
-                        className="btn btn-outline btn-sm"
-                        onClick={(e) => { e.stopPropagation(); setSelectedPass(p); }}
-                        style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
-                      >
-                        <QrTicketIcon size={14} />
-                        {(p.status === "in_campus" || p.status === "used") ? "View Exit QR" : "View Pass QR"}
-                      </button>
-                    </td>
+            <div className="data-table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Visitor</th>
+                    <th>Vehicle</th>
+                    <th>Purpose</th>
+                    <th>Vehicle Status Stage</th>
+                    <th>Created Date & Time</th>
+                    <th>Action / QR Pass</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredPasses.map((p) => (
+                    <tr key={p.id} style={{ cursor: "pointer" }} onClick={() => setSelectedPass(p)}>
+                      <td><strong>{p.visitor_name}</strong></td>
+                      <td><code>{p.vehicle_number || "—"}</code></td>
+                      <td>{p.purpose || "—"}</td>
+                      <td>{renderStatusBadge(p.status)}</td>
+                      <td>{formatDateTime(p.created_at)}</td>
+                      <td>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={(e) => { e.stopPropagation(); setSelectedPass(p); }}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                        >
+                          <QrTicketIcon size={14} />
+                          {(p.status === "in_campus" || p.status === "used") ? "View Exit QR" : "View Pass QR"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

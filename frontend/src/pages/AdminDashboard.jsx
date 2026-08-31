@@ -526,51 +526,53 @@ export default function AdminDashboard() {
             {pendingUsers.length === 0 ? (
               <p className="empty-state">No pending registration requests matching your filter criteria.</p>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Full Name</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Flat Number</th>
-                    <th>Requested At</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingUsers.map((u) => (
-                    <tr key={u.id}>
-                      <td>{u.id}</td>
-                      <td><strong>{u.full_name}</strong></td>
-                      <td><code>{u.username}</code></td>
-                      <td>{u.email}</td>
-                      <td><span className={`badge badge-${u.role}`}>{u.role}</span></td>
-                      <td>{u.flat_number || "—"}</td>
-                      <td>{formatDateTime(u.created_at)}</td>
-                      <td>
-                        <div style={{ display: "flex", gap: "6px" }}>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleApproveUser(u.id, u.username)}
-                            style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
-                          >
-                            <CheckIcon size={14} /> Approve
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleRejectUser(u.id, u.username)}
-                            style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
-                          >
-                            <TrashIcon size={14} /> Reject
-                          </button>
-                        </div>
-                      </td>
+              <div className="data-table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Full Name</th>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Flat Number</th>
+                      <th>Requested At</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {pendingUsers.map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.id}</td>
+                        <td><strong>{u.full_name}</strong></td>
+                        <td><code>{u.username}</code></td>
+                        <td>{u.email}</td>
+                        <td><span className={`badge badge-${u.role}`}>{u.role}</span></td>
+                        <td>{u.flat_number || "—"}</td>
+                        <td>{formatDateTime(u.created_at)}</td>
+                        <td>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleApproveUser(u.id, u.username)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            >
+                              <CheckIcon size={14} /> Approve
+                            </button>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => handleRejectUser(u.id, u.username)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            >
+                              <TrashIcon size={14} /> Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
@@ -608,34 +610,36 @@ export default function AdminDashboard() {
               );
             })()}
 
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Flat</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {approvedUsers.map((u) => (
-                  <tr key={u.id}>
-                    <td>{u.id}</td>
-                    <td><strong>{u.full_name}</strong></td>
-                    <td><code>{u.username}</code></td>
-                    <td>{u.email}</td>
-                    <td><span className={`badge badge-${u.role}`}>{u.role}</span></td>
-                    <td>{u.flat_number || "—"}</td>
-                    <td><span className="badge badge-approved">APPROVED</span></td>
-                    <td><button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u.id, u.username)} disabled={u.role === "admin"}>Delete</button></td>
+            <div className="data-table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Flat</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {approvedUsers.map((u) => (
+                    <tr key={u.id}>
+                      <td>{u.id}</td>
+                      <td><strong>{u.full_name}</strong></td>
+                      <td><code>{u.username}</code></td>
+                      <td>{u.email}</td>
+                      <td><span className={`badge badge-${u.role}`}>{u.role}</span></td>
+                      <td>{u.flat_number || "—"}</td>
+                      <td><span className="badge badge-approved">APPROVED</span></td>
+                      <td><button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u.id, u.username)} disabled={u.role === "admin"}>Delete</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -649,39 +653,41 @@ export default function AdminDashboard() {
             {rejectedUsers.length === 0 ? (
               <p className="empty-state">No rejected accounts matching your filter criteria.</p>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Full Name</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Rejection Reason</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rejectedUsers.map((u) => (
-                    <tr key={u.id}>
-                      <td>{u.id}</td>
-                      <td><strong>{u.full_name}</strong></td>
-                      <td><code>{u.username}</code></td>
-                      <td>{u.email}</td>
-                      <td><span className={`badge badge-${u.role}`}>{u.role}</span></td>
-                      <td><span className="badge badge-expired">REJECTED</span></td>
-                      <td><code style={{ color: "var(--danger)" }}>{u.rejection_reason || "Application details could not be verified by Admin."}</code></td>
-                      <td>
-                        <div style={{ display: "flex", gap: "6px" }}>
-                          <button className="btn btn-primary btn-sm" onClick={() => handleApproveUser(u.id, u.username)}>Approve</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u.id, u.username)}>Delete</button>
-                        </div>
-                      </td>
+              <div className="data-table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Full Name</th>
+                      <th>Username</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Rejection Reason</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rejectedUsers.map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.id}</td>
+                        <td><strong>{u.full_name}</strong></td>
+                        <td><code>{u.username}</code></td>
+                        <td>{u.email}</td>
+                        <td><span className={`badge badge-${u.role}`}>{u.role}</span></td>
+                        <td><span className="badge badge-expired">REJECTED</span></td>
+                        <td><code style={{ color: "var(--danger)" }}>{u.rejection_reason || "Application details could not be verified by Admin."}</code></td>
+                        <td>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button className="btn btn-primary btn-sm" onClick={() => handleApproveUser(u.id, u.username)}>Approve</button>
+                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteUser(u.id, u.username)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
@@ -724,30 +730,32 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <table className="data-table" style={{ margin: 0 }}>
-                      <thead>
-                        <tr>
-                          <th>ID</th>
-                          <th>Action</th>
-                          <th>Visitor Name</th>
-                          <th>Vehicle Number</th>
-                          <th>Scanned By Guard</th>
-                          <th>Time Recorded</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {displayedLogs.map((log) => (
-                          <tr key={log.id}>
-                            <td>{log.id}</td>
-                            <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
-                            <td><strong>{log.visitor_pass?.visitor_name || "—"}</strong></td>
-                            <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
-                            <td>{log.guard?.full_name || "—"}</td>
-                            <td>{formatDateTime(log.timestamp)}</td>
+                    <div className="data-table-container">
+                      <table className="data-table" style={{ margin: 0 }}>
+                        <thead>
+                          <tr>
+                            <th>ID</th>
+                            <th>Action</th>
+                            <th>Visitor Name</th>
+                            <th>Vehicle Number</th>
+                            <th>Scanned By Guard</th>
+                            <th>Time Recorded</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {displayedLogs.map((log) => (
+                            <tr key={log.id}>
+                              <td>{log.id}</td>
+                              <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
+                              <td><strong>{log.visitor_pass?.visitor_name || "—"}</strong></td>
+                              <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
+                              <td>{log.guard?.full_name || "—"}</td>
+                              <td>{formatDateTime(log.timestamp)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
 
                     {group.logs.length > 10 && (
                       <div style={{ padding: "12px 18px", background: "var(--bg-card)", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>

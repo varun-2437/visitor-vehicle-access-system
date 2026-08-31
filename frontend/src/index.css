@@ -973,3 +973,177 @@ code, kbd, pre, samp {
   -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
 }
+
+/* ─────────────────────────────────────────────────────────────
+   📱 MOBILE & TABLET RESPONSIVE STYLES (Screen Width <= 768px)
+   ───────────────────────────────────────────────────────────── */
+
+.data-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    touch-action: manipulation;
+  }
+
+  .dashboard {
+    padding: 12px 10px;
+    max-width: 100%;
+  }
+
+  .dashboard h2 {
+    font-size: 1.25rem;
+    margin-bottom: 16px;
+  }
+
+  .panel {
+    padding: 14px 12px;
+    margin-bottom: 14px;
+    border-radius: 10px;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .panel-header h3 {
+    font-size: 1.05rem;
+  }
+
+  .panel-header > div {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .navbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .navbar-brand {
+    gap: 8px;
+  }
+
+  .brand-logo-img {
+    height: 28px;
+  }
+
+  .navbar-center {
+    display: none;
+  }
+
+  .navbar-info {
+    gap: 8px;
+  }
+
+  .navbar-user {
+    font-size: 0.8rem;
+  }
+
+  .navbar-user .badge {
+    padding: 2px 6px;
+    font-size: 0.7rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-group {
+    margin-bottom: 12px;
+    width: 100%;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .search-input {
+    font-size: 16px !important;
+    padding: 10px 12px;
+    height: 44px;
+    border-radius: 8px;
+  }
+
+  .btn {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-sm {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .btn-full {
+    width: 100%;
+  }
+
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px;
+    gap: 4px;
+    margin-bottom: 14px;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 8px 14px;
+    font-size: 0.825rem;
+    border-radius: 6px;
+  }
+
+  .data-table-container {
+    border-radius: 6px;
+  }
+
+  .data-table {
+    width: 100%;
+    min-width: 580px;
+    font-size: 0.825rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 10px 10px;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 100%;
+    padding: 24px 16px;
+    margin: 10px auto;
+    border-radius: 12px;
+  }
+
+  .brand-logo-img-large {
+    height: 52px;
+  }
+}

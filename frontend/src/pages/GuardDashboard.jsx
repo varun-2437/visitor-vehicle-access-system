@@ -751,30 +751,32 @@ export default function GuardDashboard() {
             {filteredPasses.length === 0 ? (
               <p className="empty-state">No matching visitor passes found.</p>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Visitor Name</th>
-                    <th>Vehicle Number</th>
-                    <th>Purpose</th>
-                    <th>Host Resident / Flat</th>
-                    <th>Pass Status</th>
-                    <th>Expires Date & Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPasses.map((p) => (
-                    <tr key={p.id}>
-                      <td><strong>{p.visitor_name}</strong></td>
-                      <td><code>{p.vehicle_number || "—"}</code></td>
-                      <td>{p.purpose || "—"}</td>
-                      <td>{p.resident?.full_name || "—"} ({p.resident?.flat_number || "Gate"})</td>
-                      <td>{renderStatusBadge(p.status)}</td>
-                      <td>{formatDateTime(p.expires_at)}</td>
+              <div className="data-table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Visitor Name</th>
+                      <th>Vehicle Number</th>
+                      <th>Purpose</th>
+                      <th>Host Resident / Flat</th>
+                      <th>Pass Status</th>
+                      <th>Expires Date & Time</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredPasses.map((p) => (
+                      <tr key={p.id}>
+                        <td><strong>{p.visitor_name}</strong></td>
+                        <td><code>{p.vehicle_number || "—"}</code></td>
+                        <td>{p.purpose || "—"}</td>
+                        <td>{p.resident?.full_name || "—"} ({p.resident?.flat_number || "Gate"})</td>
+                        <td>{renderStatusBadge(p.status)}</td>
+                        <td>{formatDateTime(p.expires_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
@@ -899,30 +901,32 @@ export default function GuardDashboard() {
             {filteredLogs.length === 0 ? (
               <p className="empty-state">No matching vehicle activity logs found.</p>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Gate Action</th>
-                    <th>Vehicle Number</th>
-                    <th>Visitor Name</th>
-                    <th>Host Resident / Flat</th>
-                    <th>Logged By Guard</th>
-                    <th>Logged Date & Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLogs.map((log) => (
-                    <tr key={log.id}>
-                      <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
-                      <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
-                      <td>{log.visitor_pass?.visitor_name || "—"}</td>
-                      <td>{log.visitor_pass?.resident?.full_name || "—"} ({log.visitor_pass?.resident?.flat_number || "Gate"})</td>
-                      <td>{log.guard?.full_name || "—"}</td>
-                      <td>{formatDateTime(log.timestamp)}</td>
+              <div className="data-table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Gate Action</th>
+                      <th>Vehicle Number</th>
+                      <th>Visitor Name</th>
+                      <th>Host Resident / Flat</th>
+                      <th>Logged By Guard</th>
+                      <th>Logged Date & Time</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
+                        <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
+                        <td>{log.visitor_pass?.visitor_name || "—"}</td>
+                        <td>{log.visitor_pass?.resident?.full_name || "—"} ({log.visitor_pass?.resident?.flat_number || "Gate"})</td>
+                        <td>{log.guard?.full_name || "—"}</td>
+                        <td>{formatDateTime(log.timestamp)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
