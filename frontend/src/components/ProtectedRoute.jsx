@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import AnimatedPage from "./AnimatedPage";
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -18,5 +19,5 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to={dashboardMap[user.role] || "/login"} replace />;
   }
 
-  return children;
+  return <AnimatedPage>{children}</AnimatedPage>;
 }

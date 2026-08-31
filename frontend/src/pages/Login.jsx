@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import API from "../api";
 import ThemeToggle from "../components/ThemeToggle";
 import CampusSketchBG from "../components/CampusSketchBG";
+import LoadingScreen from "../components/LoadingScreen";
+import AnimatedPage from "../components/AnimatedPage";
 import vmsLogo from "../assets/vms_logo.svg";
 import { EyeIcon, EyeOffIcon } from "../components/Icons";
 
@@ -11,6 +13,8 @@ export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirectMessage, setRedirectMessage] = useState("");
 
   // Auto-redirect if user is already logged in
   useEffect(() => {
@@ -63,16 +67,20 @@ export default function Login() {
       const user = profileRes.data;
       localStorage.setItem("user", JSON.stringify(user));
 
-      // Redirect based on role
-      const dashboardMap = {
-        admin: "/admin",
-        resident: "/resident",
-        guard: "/guard",
-      };
-      navigate(dashboardMap[user.role] || "/admin");
+      // Show smooth loading transition overlay before navigating
+      setRedirectMessage(`Welcome back, ${user.full_name}! Launching ${user.role.toUpperCase()} Console...`);
+      setIsRedirecting(true);
+
+      setTimeout(() => {
+        const dashboardMap = {
+          admin: "/admin",
+          resident: "/resident",
+          guard: "/guard",
+        };
+        navigate(dashboardMap[user.role] || "/admin");
+      }, 250);
     } catch (err) {
       setError(err.response?.data?.detail || "Login failed. Please check your credentials.");
-    } finally {
       setLoading(false);
     }
   };
@@ -110,17 +118,19 @@ export default function Login() {
     (signupData.role === "resident" && !signupData.flat_number.trim());
 
   return (
-    <div className="login-container">
-      <CampusSketchBG />
-      <div className="login-card" style={{ position: "relative" }}>
-        <div style={{ position: "absolute", top: "20px", right: "20px" }}>
-          <ThemeToggle />
-        </div>
+    <AnimatedPage>
+      {isRedirecting && <LoadingScreen message={redirectMessage} />}
+      <div className="login-container">
+        <CampusSketchBG />
+        <div className="login-card" style={{ position: "relative" }}>
+          <div style={{ position: "absolute", top: "20px", right: "20px" }}>
+            <ThemeToggle />
+          </div>
 
-        <div className="login-header">
-          <img src={vmsLogo} alt="VMS Logo" className="brand-logo-img-large" />
-          <p className="login-subtitle">Visitor Vehicle Access System</p>
-        </div>
+          <div className="login-header">
+            <img src={vmsLogo} alt="VMS Logo" className="brand-logo-img-large" />
+            <p className="login-subtitle">Visitor Vehicle Access System</p>
+          </div>
 
         {message && <div className="alert alert-success">{message}</div>}
         {error && <div className="alert alert-error">{error}</div>}
@@ -354,5 +364,6 @@ export default function Login() {
         </div>
       </div>
     </div>
-  );
+  </AnimatedPage>
+);
 }

@@ -1147,3 +1147,201 @@ code, kbd, pre, samp {
     height: 52px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   ✨ SLEEK & LIGHTWEIGHT SYSTEM MICRO-ANIMATIONS (60 FPS)
+   ───────────────────────────────────────────────────────────── */
+
+/* 1. Smooth Route & Page Transitions */
+.page-transition-enter {
+  animation: pageFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@keyframes pageFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 2. Global Loading Screen Overlay */
+.loading-screen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 15, 23, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  animation: overlayFadeIn 0.2s ease-out forwards;
+}
+
+[data-theme="light"] .loading-screen-overlay {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.loading-screen-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  animation: cardZoomIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-width: 340px;
+  width: 90vw;
+  text-align: center;
+}
+
+.loading-logo-pulse {
+  height: 56px;
+  width: auto;
+  margin-bottom: 20px;
+  animation: logoHeartbeat 1.6s infinite ease-in-out;
+}
+
+.loading-spinner-ring {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(168, 27, 52, 0.2);
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+.loading-screen-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+@keyframes logoHeartbeat {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 2px 4px rgba(168, 27, 52, 0.2)); }
+  50% { transform: scale(1.06); filter: drop-shadow(0 6px 12px rgba(168, 27, 52, 0.4)); }
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cardZoomIn {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 3. Panel & Card Stagger Entrance */
+.panel {
+  animation: panelEntrance 0.32s cubic-bezier(0.16, 1, 0.3, 1) ease-out forwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+@keyframes panelEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 4. Tab Switch Fade Motion */
+.panel {
+  will-change: opacity, transform;
+}
+
+/* 5. Tactile Button Micro-Interactions */
+.btn {
+  transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.btn:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.97) !important;
+  box-shadow: none !important;
+}
+
+/* 6. Data Table Row Hover */
+.data-table tbody tr {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--bg-input) !important;
+}
+
+/* 7. Modal Scale Zoom Entry & Backdrop Blur */
+.modal-overlay {
+  animation: modalBackdropFade 0.22s ease-out forwards;
+}
+
+.modal-content {
+  animation: modalPopIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalBackdropFade {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to { opacity: 1; backdrop-filter: blur(6px); }
+}
+
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 8. Live Status Badge Pulsing Indicator */
+.badge-in_campus, .badge-approved {
+  position: relative;
+}
+
+.badge-in_campus::before, .badge-approved::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  margin-right: 6px;
+  animation: badgeGlowPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes badgeGlowPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+/* 9. Toast Notification Motion */
+.toast {
+  animation: toastSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
