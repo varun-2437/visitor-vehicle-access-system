@@ -47,17 +47,23 @@ export default function GuardDashboard() {
   const [action, setAction] = useState("entry");
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
+  const isProcessingScanRef = useRef(false);
+  const isVerifyingRef = useRef(false);
 
   // Manual vehicle entry form state
   const [manualVehicle, setManualVehicle] = useState("");
   const [manualVisitor, setManualVisitor] = useState("");
   const [manualFlat, setManualFlat] = useState("");
   const [manualPurpose, setManualPurpose] = useState("");
+  const [loadingManual, setLoadingManual] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   // Today's lists state
   const [todayPasses, setTodayPasses] = useState([]);
   const [todayLogs, setTodayLogs] = useState([]);
   const [activeTab, setActiveTab] = useState("scanner"); // "scanner", "passes", "logs"
+  const [visiblePassesCount, setVisiblePassesCount] = useState(10);
+  const [visibleLogsCount, setVisibleLogsCount] = useState(10);
 
   // Sorting helper
   const sortData = (list) => {
@@ -152,12 +158,18 @@ export default function GuardDashboard() {
 
   const fetchTodayData = async () => {
     try {
+      const params = {};
+      if (fromDate) params.from_date = new Date(fromDate).toISOString();
+      if (toDate) params.to_date = new Date(toDate).toISOString();
+
       const [passesRes, logsRes] = await Promise.all([
-        API.get("/api/qr/today-passes"),
-        API.get("/api/qr/today-logs"),
+        API.get("/api/qr/today-passes", { params }),
+        API.get("/api/qr/today-logs", { params }),
       ]);
       setTodayPasses(passesRes.data);
       setTodayLogs(logsRes.data);
+      setVisiblePassesCount(10);
+      setVisibleLogsCount(10);
     } catch (err) {
       console.error("Failed to fetch today guard data:", err);
     }
@@ -167,6 +179,7 @@ export default function GuardDashboard() {
     setError("");
     setScanResult(null);
     setScanning(true);
+    isProcessingScanRef.current = false;
 
     try {
       const html5QrCode = new Html5Qrcode("qr-reader");
@@ -176,7 +189,11 @@ export default function GuardDashboard() {
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (decodedText) => {
-          await html5QrCode.stop();
+          if (isProcessingScanRef.current) return;
+          isProcessingScanRef.current = true;
+          try {
+            await html5QrCode.stop();
+          } catch (e) {}
           setScanning(false);
           verifyToken(decodedText, 'qr');
         },
@@ -187,6 +204,7 @@ export default function GuardDashboard() {
       setScanning(false);
     }
   };
+
 
   const stopScanner = async () => {
     if (html5QrCodeRef.current) {
@@ -200,8 +218,11 @@ export default function GuardDashboard() {
   };
 
   const verifyToken = async (token, source = 'qr') => {
+    if (isVerifyingRef.current) return;
+    isVerifyingRef.current = true;
     setError("");
     setScanResult(null);
+    setVerifying(true);
     try {
       const res = await API.post("/api/qr/verify", { qr_token: token, action });
       setScanResult(res.data);
@@ -209,6 +230,11 @@ export default function GuardDashboard() {
       fetchTodayData(); // Refresh tables in real-time
     } catch (err) {
       setError(err.response?.data?.detail || "Verification failed");
+    } finally {
+      setVerifying(false);
+      setTimeout(() => {
+        isVerifyingRef.current = false;
+      }, 800);
     }
   };
 
@@ -241,6 +267,9 @@ export default function GuardDashboard() {
   };
 
   const handlePaste = (e) => {
+    if (e) {
+      e.stopPropagation();
+    }
     const items = e.clipboardData?.files;
     if (items && items.length > 0) {
       const file = items[0];
@@ -251,8 +280,10 @@ export default function GuardDashboard() {
     }
   };
 
+
   const handleManualVehicleSubmit = async (e) => {
     e.preventDefault();
+    if (loadingManual) return;
     if (!manualVehicle.trim() || !manualVisitor.trim()) {
       setError("Please provide at least Vehicle Number and Visitor Name.");
       return;
@@ -260,6 +291,7 @@ export default function GuardDashboard() {
 
     setError("");
     setScanResult(null);
+    setLoadingManual(true);
     try {
       const res = await API.post("/api/qr/manual-entry", {
         vehicle_number: manualVehicle.trim().toUpperCase(),
@@ -277,8 +309,11 @@ export default function GuardDashboard() {
       fetchTodayData(); // Refresh tables in real-time
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to log manual vehicle entry");
+    } finally {
+      setLoadingManual(false);
     }
   };
+
 
   const renderResultCard = () => {
     if (!scanResult) return null;
@@ -356,32 +391,16 @@ export default function GuardDashboard() {
     setFromDate("");
     setToDate("");
     setSortOrder("date_desc");
+    
+    // We should refetch without date filters when clearing
+    setTimeout(() => {
+        // A little hack to fetch without dates because state isn't immediately updated
+        API.get("/api/qr/today-passes").then(res => setTodayPasses(res.data));
+        API.get("/api/qr/today-logs").then(res => setTodayLogs(res.data));
+    }, 0);
   };
 
-  const filterByDateRange = (list, dateField = "timestamp") => {
-    return list.filter((item) => {
-      const rawDate = item[dateField] || item.timestamp || item.created_at;
-      if (!rawDate) return true;
-      if (!fromDate && !toDate) return true;
-
-      const isoStr = (typeof rawDate === "string" && !rawDate.endsWith("Z") && !rawDate.includes("+"))
-        ? rawDate + "Z"
-        : rawDate;
-      const itemTime = new Date(isoStr).getTime();
-
-      if (fromDate) {
-        const fromTime = new Date(fromDate).getTime();
-        if (itemTime < fromTime) return false;
-      }
-      if (toDate) {
-        const toTime = new Date(toDate).getTime();
-        if (itemTime > toTime) return false;
-      }
-      return true;
-    });
-  };
-
-  const filteredPasses = sortData(filterByDateRange(todayPasses.filter((p) => {
+  const filteredPasses = sortData(todayPasses.filter((p) => {
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -393,9 +412,9 @@ export default function GuardDashboard() {
       (p.resident?.flat_number && p.resident.flat_number.toLowerCase().includes(q)) ||
       (p.status && p.status.toLowerCase().includes(q))
     );
-  }), "created_at"));
+  }));
 
-  const filteredLogs = sortData(filterByDateRange(todayLogs.filter((log) => {
+  const filteredLogs = sortData(todayLogs.filter((log) => {
     if (actionFilter !== "all" && log.action !== actionFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
@@ -407,7 +426,10 @@ export default function GuardDashboard() {
       (log.visitor_pass?.resident?.flat_number && log.visitor_pass.resident.flat_number.toLowerCase().includes(q)) ||
       (log.guard?.full_name && log.guard.full_name.toLowerCase().includes(q))
     );
-  }), "timestamp"));
+  }));
+
+  const displayedPasses = filteredPasses.slice(0, visiblePassesCount);
+  const displayedLogs = filteredLogs.slice(0, visibleLogsCount);
 
   return (
     <>
@@ -452,14 +474,14 @@ export default function GuardDashboard() {
             onClick={() => setActiveTab("passes")}
             style={{ display: "flex", alignItems: "center", gap: "6px" }}
           >
-            <QrTicketIcon size={16} /> Today's Approved Passes ({todayPasses.length})
+            <QrTicketIcon size={16} /> Approved Passes ({filteredPasses.length})
           </button>
           <button
             className={`tab ${activeTab === "logs" ? "active" : ""}`}
             onClick={() => setActiveTab("logs")}
             style={{ display: "flex", alignItems: "center", gap: "6px" }}
           >
-            <LogsIcon size={16} /> Today's Entry / Exit Logs ({todayLogs.length})
+            <LogsIcon size={16} /> Entry / Exit Logs ({filteredLogs.length})
           </button>
         </div>
 
@@ -538,7 +560,9 @@ export default function GuardDashboard() {
                       placeholder="e.g. e75baca1-d421-4191..."
                       className="flex-grow"
                     />
-                    <button type="submit" className="btn btn-primary" disabled={!manualToken.trim()}>Verify</button>
+                    <button type="submit" className="btn btn-primary" disabled={verifying || !manualToken.trim()}>
+                      {verifying ? "Verifying..." : "Verify"}
+                    </button>
                   </form>
                 </div>
               </div>
@@ -555,7 +579,7 @@ export default function GuardDashboard() {
               </p>
 
               {(() => {
-                const isManualEntryDisabled = !manualVehicle.trim() || !manualVisitor.trim() || !(/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim()));
+                const isManualEntryDisabled = loadingManual || !manualVehicle.trim() || !manualVisitor.trim() || !(/^[A-Z0-9\s-]{4,15}$/i.test(manualVehicle.trim()));
 
                 return (
                   <form onSubmit={handleManualVehicleSubmit} className="create-form">
@@ -617,8 +641,9 @@ export default function GuardDashboard() {
                     </div>
 
                     <button type="submit" className="btn btn-primary" disabled={isManualEntryDisabled} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                      <VehicleEntryIcon size={16} /> Log Manual Vehicle {action.toUpperCase()}
+                      <VehicleEntryIcon size={16} /> {loadingManual ? "Logging..." : `Log Manual Vehicle ${action.toUpperCase()}`}
                     </button>
+
                   </form>
                 );
               })()}
@@ -633,7 +658,7 @@ export default function GuardDashboard() {
         {activeTab === "passes" && (
           <div className="panel">
             <div className="panel-header">
-              <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><QrTicketIcon size={20} /> Today's Approved Visitor Passes</h3>
+              <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><QrTicketIcon size={20} /> Approved Visitor Passes</h3>
               <div style={{ display: "flex", gap: "8px" }}>
                 <button className="btn btn-outline btn-sm" onClick={handleExportPasses} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><ExportIcon size={14} /> Export CSV</button>
                 <button className="btn btn-outline btn-sm" onClick={fetchTodayData} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><RefreshIcon size={14} /> Refresh</button>
@@ -744,6 +769,10 @@ export default function GuardDashboard() {
                       Clear Filters
                     </button>
                   )}
+                  
+                  <button type="button" className="btn btn-primary btn-sm" onClick={fetchTodayData} style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <SearchIcon size={14} /> Apply Date Filter
+                  </button>
                 </div>
               </div>
             </div>
@@ -764,7 +793,7 @@ export default function GuardDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPasses.map((p) => (
+                    {displayedPasses.map((p) => (
                       <tr key={p.id}>
                         <td><strong>{p.visitor_name}</strong></td>
                         <td><code>{p.vehicle_number || "—"}</code></td>
@@ -776,6 +805,17 @@ export default function GuardDashboard() {
                     ))}
                   </tbody>
                 </table>
+                
+                {filteredPasses.length > visiblePassesCount && (
+                  <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "20px" }}>
+                    <button className="btn btn-outline" onClick={() => setVisiblePassesCount(v => v + 10)}>
+                      Show 10 More
+                    </button>
+                    <button className="btn btn-outline" onClick={() => setVisiblePassesCount(filteredPasses.length)}>
+                      Show All {filteredPasses.length}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -894,6 +934,10 @@ export default function GuardDashboard() {
                       Clear Filters
                     </button>
                   )}
+                  
+                  <button type="button" className="btn btn-primary btn-sm" onClick={fetchTodayData} style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <SearchIcon size={14} /> Apply Date Filter
+                  </button>
                 </div>
               </div>
             </div>
@@ -914,7 +958,7 @@ export default function GuardDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredLogs.map((log) => (
+                    {displayedLogs.map((log) => (
                       <tr key={log.id}>
                         <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
                         <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
@@ -926,6 +970,17 @@ export default function GuardDashboard() {
                     ))}
                   </tbody>
                 </table>
+                
+                {filteredLogs.length > visibleLogsCount && (
+                  <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "20px" }}>
+                    <button className="btn btn-outline" onClick={() => setVisibleLogsCount(v => v + 10)}>
+                      Show 10 More
+                    </button>
+                    <button className="btn btn-outline" onClick={() => setVisibleLogsCount(filteredLogs.length)}>
+                      Show All {filteredLogs.length}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

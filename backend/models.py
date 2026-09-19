@@ -84,3 +84,17 @@ class AccessLog(Base):
     # Relationships
     visitor_pass = relationship("VisitorPass", back_populates="access_logs")
     guard = relationship("User", foreign_keys=[scanned_by])
+
+# ─── Hardware API Key Model ───
+class HardwareAPIKey(Base):
+    __tablename__ = "hardware_api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    description = Column(String(100), nullable=False)
+    key_hash = Column(String(255), nullable=False, unique=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Relationships
+    admin_user = relationship("User", foreign_keys=[created_by])

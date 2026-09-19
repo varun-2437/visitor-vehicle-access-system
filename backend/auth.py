@@ -65,3 +65,42 @@ def require_role(*roles: str):
             )
         return current_user
     return role_checker
+
+from fastapi import Security, Request
+from fastapi.security.api_key import APIKeyHeader
+import hashlib
+from models import HardwareAPIKey
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def get_hardware_or_guard(
+    request: Request,
+    api_key: Optional[str] = Security(api_key_header),
+    db: Session = Depends(get_db)
+):
+    """
+    Allow access if EITHER a valid Hardware API Key is provided
+    OR a valid user token (guard/admin) is provided.
+    """
+    # 1. Try Hardware API Key First
+    if api_key:
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        hw_key = db.query(HardwareAPIKey).filter(HardwareAPIKey.key_hash == key_hash, HardwareAPIKey.is_active == True).first()
+        if hw_key:
+            return {"type": "hardware", "id": hw_key.id}
+    
+    # 2. Fall back to JWT Token
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        try:
+            user = get_current_user(token, db)
+            if user.role in ["guard", "admin"]:
+                return {"type": "user", "user": user}
+        except HTTPException:
+            pass # token invalid
+            
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Valid Guard/Admin token or Hardware API Key required",
+    )

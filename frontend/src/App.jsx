@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import API from "./api";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import ResidentDashboard from "./pages/ResidentDashboard";
@@ -24,6 +26,11 @@ function HomeRedirect() {
 }
 
 function App() {
+  useEffect(() => {
+    // Initialize CSRF token on app load
+    API.get("/api/csrf-token").catch(err => console.error("Failed to fetch CSRF token:", err));
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
-from models import User, VisitorPass, AccessLog, PassStatus, LogAction
+from models import User, VisitorPass, AccessLog, PassStatus, LogAction, HardwareAPIKey
 from schemas import (
     VisitorPassCreate,
     VisitorPassResponse,
@@ -13,7 +13,7 @@ from schemas import (
     QRVerifyResponse,
     ManualVehicleEntryCreate,
 )
-from auth import get_current_user, require_role
+from auth import get_current_user, require_role, get_hardware_or_guard
 from config import QR_CODES_DIR
 
 router = APIRouter(prefix="/api/qr", tags=["QR Codes"])
@@ -65,9 +65,9 @@ def generate_visitor_pass(
 def verify_qr_code(
     data: QRVerifyRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin")),
+    user_or_hw: dict = Depends(get_hardware_or_guard),
 ):
-    """Verify a scanned QR code token. Guards and admins only."""
+    """Verify a scanned QR code token. Guards, admins, or hardware devices only."""
     visitor_pass = db.query(VisitorPass).filter(VisitorPass.qr_token == data.qr_token).first()
 
     if not visitor_pass:
@@ -78,6 +78,20 @@ def verify_qr_code(
         visitor_pass.status = PassStatus.expired
         db.commit()
         return QRVerifyResponse(valid=False, message="❌ Pass Expired: This visitor pass has expired.", visitor_pass=visitor_pass)
+
+    # ── Deduplication Check ──
+    # If this exact action was recorded within the last 10 seconds, return the success response without showing a false denial
+    recent_log = db.query(AccessLog).filter(
+        AccessLog.visitor_pass_id == visitor_pass.id,
+        AccessLog.action == data.action,
+        AccessLog.timestamp >= datetime.utcnow() - timedelta(seconds=10)
+    ).first()
+    if recent_log:
+        return QRVerifyResponse(
+            valid=True,
+            message=f"✅ Vehicle {data.action.upper()} recorded for {visitor_pass.visitor_name}",
+            visitor_pass=visitor_pass,
+        )
 
     # ── State Validation ──
     if data.action == "entry":
@@ -109,9 +123,22 @@ def verify_qr_code(
             )
 
     # Valid — create access log & update vehicle status
+    # Determine who scanned it
+    scanned_by_id = None
+    if user_or_hw["type"] == "user":
+        scanned_by_id = user_or_hw["user"].id
+    else:
+        # For hardware, we can set it to the admin who created the key, or we need a special handling.
+        # Let's see models.py: scanned_by is an Integer ForeignKey("users.id").
+        # For hardware, maybe we get the admin user from the hardware key, or we just leave it as None if nullable.
+        # It's nullable=False. So we need a valid user ID. 
+        # For simplicity, we can fetch the user who created the API key or a special 'system' user.
+        hw_key = db.query(HardwareAPIKey).filter(HardwareAPIKey.id == user_or_hw["id"]).first()
+        scanned_by_id = hw_key.created_by if hw_key else 1
+
     log = AccessLog(
         visitor_pass_id=visitor_pass.id,
-        scanned_by=current_user.id,
+        scanned_by=scanned_by_id,
         action=data.action,
     )
     db.add(log)
@@ -196,36 +223,53 @@ def manual_vehicle_entry(
     )
 
 
+from typing import Optional
+
+def parse_iso(date_str: str) -> datetime:
+    if date_str.endswith('Z'):
+        date_str = date_str[:-1] + '+00:00'
+    return datetime.fromisoformat(date_str).replace(tzinfo=None)
+
 @router.get("/today-passes", response_model=List[VisitorPassResponse])
 def get_today_passes(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin")),
 ):
-    """List all visitor passes created in the last 24 hours. Guards and admins only."""
-    since = datetime.utcnow() - timedelta(hours=24)
-    passes = (
-        db.query(VisitorPass)
-        .filter(VisitorPass.created_at >= since)
-        .order_by(VisitorPass.created_at.desc())
-        .all()
-    )
-    return passes
+    """List visitor passes. Defaults to last 24 hours unless date range is provided."""
+    query = db.query(VisitorPass)
+    if from_date:
+        query = query.filter(VisitorPass.created_at >= parse_iso(from_date))
+    if to_date:
+        query = query.filter(VisitorPass.created_at <= parse_iso(to_date))
+    
+    if not from_date and not to_date:
+        since = datetime.utcnow() - timedelta(hours=24)
+        query = query.filter(VisitorPass.created_at >= since)
+
+    return query.order_by(VisitorPass.created_at.desc()).all()
 
 
 from schemas import AccessLogResponse
 
 @router.get("/today-logs", response_model=List[AccessLogResponse])
 def get_today_logs(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin")),
 ):
-    """List all vehicle entry and exit access logs recorded in the last 24 hours. Guards and admins only."""
-    since = datetime.utcnow() - timedelta(hours=24)
-    logs = (
-        db.query(AccessLog)
-        .filter(AccessLog.timestamp >= since)
-        .order_by(AccessLog.timestamp.desc())
-        .all()
-    )
-    return logs
+    """List vehicle entry and exit access logs. Defaults to last 24 hours unless date range is provided."""
+    query = db.query(AccessLog)
+    if from_date:
+        query = query.filter(AccessLog.timestamp >= parse_iso(from_date))
+    if to_date:
+        query = query.filter(AccessLog.timestamp <= parse_iso(to_date))
+        
+    if not from_date and not to_date:
+        since = datetime.utcnow() - timedelta(hours=24)
+        query = query.filter(AccessLog.timestamp >= since)
+
+    return query.order_by(AccessLog.timestamp.desc()).all()
 

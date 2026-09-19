@@ -21,9 +21,16 @@ import {
   ClockIcon,
 } from "../components/Icons";
 
+const KeyIcon = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+  </svg>
+);
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [apiKeys, setApiKeys] = useState([]);
   const [activeTab, setActiveTab] = useState("pending");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,6 +47,8 @@ export default function AdminDashboard() {
   const [formData, setFormData] = useState({
     username: "", email: "", password: "", full_name: "", role: "resident", flat_number: "",
   });
+  const [apiKeyDescription, setApiKeyDescription] = useState("");
+  const [newApiKey, setNewApiKey] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -112,7 +121,17 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchUsers();
     fetchLogs();
+    fetchApiKeys();
   }, []);
+
+  const fetchApiKeys = async () => {
+    try {
+      const res = await API.get("/api/admin/api-keys");
+      setApiKeys(res.data);
+    } catch (err) {
+      console.error("Failed to fetch API keys:", err);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -197,6 +216,33 @@ export default function AdminDashboard() {
       const errMsg = err.response?.data?.detail || "Failed to delete user";
       setError(errMsg);
       setToast({ message: errMsg, type: "error" });
+    }
+  };
+
+  const handleCreateApiKey = async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    try {
+      const res = await API.post("/api/admin/api-keys", { description: apiKeyDescription });
+      setNewApiKey(res.data.api_key);
+      setMessage(res.data.message);
+      setApiKeyDescription("");
+      setShowCreateForm(false);
+      fetchApiKeys();
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to create API key");
+    }
+  };
+
+  const handleRevokeApiKey = async (keyId) => {
+    if (!window.confirm("Revoke this API Key? Devices using it will lose access immediately.")) return;
+    try {
+      await API.delete(`/api/admin/api-keys/${keyId}`);
+      setToast({ message: "API Key revoked successfully.", type: "success" });
+      fetchApiKeys();
+    } catch (err) {
+      setToast({ message: "Failed to revoke API key", type: "error" });
     }
   };
 
@@ -514,6 +560,13 @@ export default function AdminDashboard() {
           >
             <LogsIcon size={16} /> System Access Logs ({dateFilteredLogs.length})
           </button>
+          <button
+            className={`tab ${activeTab === "apikeys" ? "active" : ""}`}
+            onClick={() => { setActiveTab("apikeys"); setShowCreateForm(false); setNewApiKey(null); }}
+            style={{ display: "flex", alignItems: "center", gap: "6px" }}
+          >
+            <KeyIcon size={16} /> Hardware API Keys
+          </button>
         </div>
 
         {activeTab === "pending" && (
@@ -782,6 +835,66 @@ export default function AdminDashboard() {
                 );
               })
             )}
+          </div>
+        )}
+
+        {activeTab === "apikeys" && (
+          <div className="panel">
+            <div className="panel-header">
+              <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><KeyIcon size={18} /> Hardware API Keys</h3>
+              <button className="btn btn-primary btn-sm" onClick={() => { setShowCreateForm(!showCreateForm); setNewApiKey(null); }} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                {showCreateForm ? "Cancel" : <><KeyIcon size={14} /> Generate New Key</>}
+              </button>
+            </div>
+
+            {showCreateForm && (
+              <form className="create-form" onSubmit={handleCreateApiKey}>
+                <div className="form-group">
+                  <label>Description (e.g. "Main Gate Raspberry Pi") *</label>
+                  <input value={apiKeyDescription} onChange={(e) => setApiKeyDescription(e.target.value)} required />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={!apiKeyDescription.trim()}>Generate Key</button>
+              </form>
+            )}
+
+            {newApiKey && (
+              <div className="alert alert-warning" style={{ marginTop: "15px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <strong>⚠️ IMPORTANT: Copy your new API key now!</strong>
+                <p>For your security, this key will never be shown again.</p>
+                <code style={{ background: "#fff", padding: "10px", borderRadius: "var(--radius)", fontSize: "1.1rem", border: "1px solid var(--border)", userSelect: "all" }}>
+                  {newApiKey}
+                </code>
+              </div>
+            )}
+
+            <div className="data-table-container" style={{ marginTop: "20px" }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Description</th>
+                    <th>Created At</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {apiKeys.length === 0 ? (
+                    <tr><td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>No API keys generated yet.</td></tr>
+                  ) : (
+                    apiKeys.map((k) => (
+                      <tr key={k.id}>
+                        <td>{k.id}</td>
+                        <td><strong>{k.description}</strong></td>
+                        <td>{formatDateTime(k.created_at)}</td>
+                        <td>{k.is_active ? <span className="badge badge-approved">ACTIVE</span> : <span className="badge badge-expired">REVOKED</span>}</td>
+                        <td><button className="btn btn-danger btn-sm" onClick={() => handleRevokeApiKey(k.id)}>Revoke</button></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

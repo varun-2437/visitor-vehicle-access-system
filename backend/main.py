@@ -8,6 +8,8 @@ from config import BASE_DIR, CORS_ORIGINS, DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN
 from routes.auth import router as auth_router
 from routes.admin import router as admin_router
 from routes.qr import router as qr_router
+from routes.api_keys import router as api_keys_router
+from csrf import CSRFMiddleware, router as csrf_router
 
 # ─── Create App ───
 app = FastAPI(
@@ -15,6 +17,9 @@ app = FastAPI(
     description="Backend API for smart visitor vehicle access with QR codes and ANPR",
     version="1.0.0",
 )
+
+# ─── Security Middleware ───
+app.add_middleware(CSRFMiddleware)
 
 # ─── CORS Middleware ───
 app.add_middleware(
@@ -30,9 +35,11 @@ app.mount("/qr_codes", StaticFiles(directory=str(QR_CODES_DIR)), name="qr_codes"
 app.mount("/tests", StaticFiles(directory=str(BASE_DIR.parent / "tests"), html=True), name="tests")
 
 # ─── Register Routers ───
+app.include_router(csrf_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(qr_router)
+app.include_router(api_keys_router)
 
 
 # ─── Startup Event ───

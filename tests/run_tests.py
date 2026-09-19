@@ -21,9 +21,18 @@ class Colors:
     BOLD = "\033[1m"
     END = "\033[0m"
 
+GLOBAL_CSRF_TOKEN = None
+
 def http_request(url, method="GET", headers=None, body=None):
+    global GLOBAL_CSRF_TOKEN
     if headers is None:
         headers = {}
+    
+    # Inject CSRF tokens if available and method is mutating
+    if GLOBAL_CSRF_TOKEN and method in ["POST", "PUT", "DELETE", "PATCH"]:
+        headers["X-XSRF-TOKEN"] = GLOBAL_CSRF_TOKEN
+        headers["Cookie"] = f"XSRF-TOKEN={GLOBAL_CSRF_TOKEN}"
+        
     if body is not None and isinstance(body, dict):
         body = json.dumps(body).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -35,6 +44,13 @@ def http_request(url, method="GET", headers=None, body=None):
             latency_ms = int((time.time() - start_time) * 1000)
             data = response.read().decode("utf-8")
             json_data = json.loads(data) if data and data.startswith(("{", "[")) else data
+            
+            # Extract CSRF token if Set-Cookie header exists
+            set_cookie = response.getheader("Set-Cookie")
+            if set_cookie and "XSRF-TOKEN=" in set_cookie:
+                token_part = set_cookie.split("XSRF-TOKEN=")[1].split(";")[0]
+                GLOBAL_CSRF_TOKEN = token_part
+
             return True, response.status, json_data, latency_ms
     except urllib.error.HTTPError as e:
         latency_ms = int((time.time() - start_time) * 1000)
@@ -87,6 +103,13 @@ def run_automated_tests():
             print(f"  {Colors.GREEN}✔ PASS{Colors.END} | {name:<45} {details}")
         else:
             print(f"  {Colors.RED}✘ FAIL{Colors.END} | {name:<45} {details}")
+
+    # 0. Initialize CSRF Token
+    success, status, data, latency = http_request(f"{BACKEND_URL}/api/csrf-token")
+    if success:
+        assert_test("CSRF Token Initialization", True, f"({latency}ms) Token received")
+    else:
+        assert_test("CSRF Token Initialization", False, f"HTTP {status}: {data}")
 
     # 1. Admin Login
     success, status, data, latency = http_request(
