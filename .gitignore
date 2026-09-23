@@ -90,11 +90,14 @@ TECH_STACK.md
 *Checklist*.md
 *checklist*.md
 *progress*.md
-*Progress*.md
-*stack*.md
 *Stack*.md
 *.log
 scratch/
 temp/
+
+# Screenshots & temporary images
+Screenshot*.png
+*.png.tmp
+
 
 

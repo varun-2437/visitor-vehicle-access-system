@@ -1,11 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import API from "./api";
-import Login from "./pages/Login";
-import AdminDashboard from "./pages/AdminDashboard";
-import ResidentDashboard from "./pages/ResidentDashboard";
-import GuardDashboard from "./pages/GuardDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
+import LoadingScreen from "./components/LoadingScreen";
+
+const Login = lazy(() => import("./pages/Login"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const ResidentDashboard = lazy(() => import("./pages/ResidentDashboard"));
+const GuardDashboard = lazy(() => import("./pages/GuardDashboard"));
 
 function HomeRedirect() {
   const token = localStorage.getItem("token");
@@ -33,32 +35,35 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+      <Suspense fallback={<LoadingScreen message="Loading page..." />}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
-        <Route path="/admin" element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <AdminDashboard />
-          </ProtectedRoute>
-        } />
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/resident" element={
-          <ProtectedRoute allowedRoles={["resident"]}>
-            <ResidentDashboard />
-          </ProtectedRoute>
-        } />
+          <Route path="/resident" element={
+            <ProtectedRoute allowedRoles={["resident"]}>
+              <ResidentDashboard />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/guard" element={
-          <ProtectedRoute allowedRoles={["guard"]}>
-            <GuardDashboard />
-          </ProtectedRoute>
-        } />
+          <Route path="/guard" element={
+            <ProtectedRoute allowedRoles={["guard"]}>
+              <GuardDashboard />
+            </ProtectedRoute>
+          } />
 
-        <Route path="/" element={<HomeRedirect />} />
-        <Route path="*" element={<HomeRedirect />} />
-      </Routes>
+          <Route path="/" element={<HomeRedirect />} />
+          <Route path="*" element={<HomeRedirect />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
 
 export default App;
+
