@@ -15,8 +15,9 @@ from csrf import CSRFMiddleware, router as csrf_router
 app = FastAPI(
     title="Visitor Vehicle Access System",
     description="Backend API for smart visitor vehicle access with QR codes and ANPR",
-    version="1.0.0",
+    version="2.0.0",
 )
+
 
 # ─── Security Middleware ───
 app.add_middleware(CSRFMiddleware)
