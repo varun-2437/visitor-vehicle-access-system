@@ -339,7 +339,7 @@ export default function GuardDashboard() {
                   <QrTicketIcon size={18} /> Gate Pass QR Code (Generated for Exit Verification)
                 </h4>
                 <img
-                  src={`http://${window.location.hostname}:8000${scanResult.visitor_pass.qr_image_path}`}
+                  src={scanResult.visitor_pass.qr_image_path?.startsWith("data:") || scanResult.visitor_pass.qr_image_path?.startsWith("http") ? scanResult.visitor_pass.qr_image_path : `http://${window.location.hostname}:8000${scanResult.visitor_pass.qr_image_path}`}
                   alt="Gate Pass QR Code"
                   style={{ width: "160px", height: "160px", margin: "10px auto", display: "block", borderRadius: "8px", border: "2px solid var(--border)", background: "#fff", padding: "4px" }}
                 />

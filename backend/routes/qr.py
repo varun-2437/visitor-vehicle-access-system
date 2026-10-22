@@ -19,17 +19,31 @@ from config import QR_CODES_DIR
 router = APIRouter(prefix="/api/qr", tags=["QR Codes"])
 
 
+import io
+import base64
+
 def generate_qr_code_file(qr_token: str) -> str:
-    """Helper to generate a QR PNG image file from a UUID token string."""
+    """Helper to generate a QR Data URI (serverless friendly) and optional local PNG file."""
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(qr_token)
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white")
 
-    filename = f"qr_{qr_token}.png"
-    filepath = os.path.join(QR_CODES_DIR, filename)
-    qr_img.save(filepath)
-    return f"/qr_codes/{filename}"
+    # Generate Base64 Data URI (serverless friendly, 0 disk required)
+    buf = io.BytesIO()
+    qr_img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    data_uri = f"data:image/png;base64,{b64}"
+
+    # Optionally save to local file if writable
+    try:
+        filename = f"qr_{qr_token}.png"
+        filepath = os.path.join(QR_CODES_DIR, filename)
+        qr_img.save(filepath)
+    except Exception:
+        pass
+
+    return data_uri
 
 
 @router.post("/generate", response_model=VisitorPassResponse)

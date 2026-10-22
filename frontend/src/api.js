@@ -1,7 +1,14 @@
 import axios from "axios";
 
 const getBaseURL = () => {
-  const hostname = window.location.hostname || "localhost";
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // When hosted on Vercel or production domain, use relative URLs (same-origin)
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return "";
+  }
+  const hostname = (typeof window !== "undefined" && window.location.hostname) || "localhost";
   return `http://${hostname}:8000`;
 };
 

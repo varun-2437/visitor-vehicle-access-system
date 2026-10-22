@@ -32,8 +32,11 @@ app.add_middleware(
 )
 
 # ─── Static Files (QR code images & Test Suite Dashboard) ───
-app.mount("/qr_codes", StaticFiles(directory=str(QR_CODES_DIR)), name="qr_codes")
-app.mount("/tests", StaticFiles(directory=str(BASE_DIR.parent / "tests"), html=True), name="tests")
+if QR_CODES_DIR.exists():
+    app.mount("/qr_codes", StaticFiles(directory=str(QR_CODES_DIR)), name="qr_codes")
+tests_dir = BASE_DIR.parent / "tests"
+if tests_dir.exists():
+    app.mount("/tests", StaticFiles(directory=str(tests_dir), html=True), name="tests")
 
 # ─── Register Routers ───
 app.include_router(csrf_router)

@@ -125,7 +125,8 @@ export default function ResidentDashboard() {
       const msg = `QR pass generated for ${res.data.visitor_name}!`;
       setMessage(msg);
       setToast({ message: msg, type: "success" });
-      setQrImage(`http://${window.location.hostname}:8000${res.data.qr_image_path}`);
+      const qrPath = res.data.qr_image_path || "";
+      setQrImage(qrPath.startsWith("data:") || qrPath.startsWith("http") ? qrPath : `http://${window.location.hostname}:8000${qrPath}`);
       setFormData({ visitor_name: "", vehicle_number: "", purpose: "", hours_valid: 24 });
       fetchPasses();
     } catch (err) {
@@ -490,7 +491,7 @@ export default function ResidentDashboard() {
                 <p style={{ fontSize: "0.825rem", color: "var(--text-muted)", marginBottom: "12px" }}>
                   Present this <strong>Exit QR Code</strong> to the Security Guard when the vehicle exits the campus gate.
                 </p>
-                <img src={`http://${window.location.hostname}:8000${selectedPass.qr_image_path}`} alt="Exit QR Code" style={{ width: "200px", height: "200px", borderRadius: "8px", border: "2px solid var(--success-border)" }} />
+                <img src={selectedPass.qr_image_path?.startsWith("data:") || selectedPass.qr_image_path?.startsWith("http") ? selectedPass.qr_image_path : `http://${window.location.hostname}:8000${selectedPass.qr_image_path}`} alt="Exit QR Code" style={{ width: "200px", height: "200px", borderRadius: "8px", border: "2px solid var(--success-border)" }} />
               </div>
             ) : (selectedPass.status === "not_inside" || selectedPass.status === "approved" || selectedPass.status === "pending") ? (
               <div style={{ background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "16px", textAlign: "center" }}>
@@ -499,7 +500,7 @@ export default function ResidentDashboard() {
                 <p style={{ fontSize: "0.825rem", color: "var(--text-muted)", marginBottom: "12px" }}>
                   Present this <strong>Entry QR Code</strong> to the Security Guard at the entrance gate.
                 </p>
-                <img src={`http://${window.location.hostname}:8000${selectedPass.qr_image_path}`} alt="Entry QR Code" style={{ width: "200px", height: "200px", borderRadius: "8px", border: "1px solid var(--border)" }} />
+                <img src={selectedPass.qr_image_path?.startsWith("data:") || selectedPass.qr_image_path?.startsWith("http") ? selectedPass.qr_image_path : `http://${window.location.hostname}:8000${selectedPass.qr_image_path}`} alt="Entry QR Code" style={{ width: "200px", height: "200px", borderRadius: "8px", border: "1px solid var(--border)" }} />
               </div>
             ) : selectedPass.status === "exited" ? (
               <div style={{ background: "rgba(15, 23, 42, 0.04)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "20px", textAlign: "center" }}>

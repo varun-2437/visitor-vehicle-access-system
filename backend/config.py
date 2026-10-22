@@ -4,7 +4,10 @@ from pathlib import Path
 # ─── Base Paths ───
 BASE_DIR = Path(__file__).resolve().parent
 QR_CODES_DIR = BASE_DIR / "qr_codes"
-QR_CODES_DIR.mkdir(exist_ok=True)
+try:
+    QR_CODES_DIR.mkdir(exist_ok=True)
+except Exception:
+    pass
 
 # ─── Database ───
 DATABASE_URL = f"sqlite:///{BASE_DIR / 'app.db'}"
