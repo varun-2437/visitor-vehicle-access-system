@@ -291,42 +291,73 @@ def get_today_logs(
 
 @router.get("/stats")
 def get_campus_vehicle_stats(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get live campus vehicle statistics:
-    - vehicles_inside: Active vehicles currently inside campus
-    - total_visited: Cumulative vehicles that have entered campus
-    - total_passes: Total visitor passes created
+    Get live campus vehicle statistics for the present day (resets daily):
+    - vehicles_inside: Active vehicles that entered today and are currently inside campus
+    - total_visited: Total vehicle entries recorded today
+    - total_passes: Total visitor passes created today
     """
+    if from_date:
+        start_time = parse_iso(from_date)
+    else:
+        now = datetime.utcnow()
+        start_time = datetime(now.year, now.month, now.day, 0, 0, 0)
+
+    if to_date:
+        end_time = parse_iso(to_date)
+    else:
+        now = datetime.utcnow()
+        end_time = datetime(now.year, now.month, now.day, 23, 59, 59, 999999)
+
+    # 1. Vehicles that entered today and are currently inside campus
     vehicles_inside = (
-        db.query(VisitorPass)
+        db.query(func.count(func.distinct(VisitorPass.id)))
+        .join(AccessLog, AccessLog.visitor_pass_id == VisitorPass.id)
         .filter(
+            AccessLog.action == LogAction.entry,
+            AccessLog.timestamp >= start_time,
+            AccessLog.timestamp <= end_time,
             VisitorPass.status.in_([PassStatus.in_campus, PassStatus.used]),
             VisitorPass.vehicle_number.isnot(None),
             func.trim(VisitorPass.vehicle_number) != "",
         )
-        .count()
+        .scalar() or 0
     )
 
+    # 2. Total vehicle entries recorded today
     total_visited = (
-        db.query(AccessLog)
-        .join(VisitorPass)
+        db.query(func.count(AccessLog.id))
+        .join(VisitorPass, AccessLog.visitor_pass_id == VisitorPass.id)
         .filter(
             AccessLog.action == LogAction.entry,
+            AccessLog.timestamp >= start_time,
+            AccessLog.timestamp <= end_time,
             VisitorPass.vehicle_number.isnot(None),
             func.trim(VisitorPass.vehicle_number) != "",
         )
-        .count()
+        .scalar() or 0
     )
 
-    total_passes = db.query(VisitorPass).count()
+    # 3. Total visitor passes created today
+    total_passes = (
+        db.query(func.count(VisitorPass.id))
+        .filter(
+            VisitorPass.created_at >= start_time,
+            VisitorPass.created_at <= end_time,
+        )
+        .scalar() or 0
+    )
 
     return {
         "vehicles_inside": vehicles_inside,
         "total_visited": total_visited,
         "total_passes": total_passes,
+        "date": start_time.strftime("%Y-%m-%d"),
     }
 
 

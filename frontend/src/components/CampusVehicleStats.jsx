@@ -13,7 +13,17 @@ export default function CampusVehicleStats({ refreshTrigger = 0 }) {
 
   const fetchStats = async () => {
     try {
-      const res = await API.get("/api/qr/stats");
+      const now = new Date();
+      // Calculate local start (00:00:00) and end (23:59:59) of present day
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).toISOString();
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+
+      const res = await API.get("/api/qr/stats", {
+        params: {
+          from_date: startOfToday,
+          to_date: endOfToday,
+        },
+      });
       if (res.data) {
         setStats({
           vehicles_inside: res.data.vehicles_inside ?? 0,
@@ -30,66 +40,66 @@ export default function CampusVehicleStats({ refreshTrigger = 0 }) {
 
   useEffect(() => {
     fetchStats();
-    // Poll every 12 seconds to keep live metrics updated
+    // Poll every 12 seconds to keep live metrics updated and auto-refresh on new day
     const interval = setInterval(fetchStats, 12000);
     return () => clearInterval(interval);
   }, [refreshTrigger]);
 
   return (
     <div className="campus-stats-grid" role="region" aria-label="Campus Vehicle Live Statistics">
-      {/* 1. Total Vehicles Currently Inside Campus */}
+      {/* 1. Vehicles Currently Inside Campus (Present Day) */}
       <div className="campus-stat-card card-inside">
         <div className="campus-stat-info">
           <div className="stat-badge-row">
             <span className="stat-badge stat-badge-inside">
-              <span className="stat-pulse-dot" /> Live In Campus
+              <span className="stat-pulse-dot" /> Live Today
             </span>
           </div>
           <div className="campus-stat-value">
             {loading ? "…" : stats.vehicles_inside}
           </div>
           <div className="campus-stat-title">Vehicles Inside Campus</div>
-          <div className="campus-stat-desc">Active vehicles currently inside campus gates</div>
+          <div className="campus-stat-desc">Active inside campus today (resets daily)</div>
         </div>
-        <div className="campus-stat-icon-box icon-box-inside" title="Vehicles currently inside campus">
+        <div className="campus-stat-icon-box icon-box-inside" title="Vehicles currently inside campus today">
           <CarIcon size={26} />
         </div>
       </div>
 
-      {/* 2. Total Vehicles Visited Campus */}
+      {/* 2. Total Vehicles Visited Today */}
       <div className="campus-stat-card card-visited">
         <div className="campus-stat-info">
           <div className="stat-badge-row">
             <span className="stat-badge stat-badge-visited">
-              ★ All-Time Entries
+              ★ Today's Visits
             </span>
           </div>
           <div className="campus-stat-value">
             {loading ? "…" : stats.total_visited}
           </div>
-          <div className="campus-stat-title">Total Vehicles Visited</div>
-          <div className="campus-stat-desc">Cumulative campus vehicle visits recorded</div>
+          <div className="campus-stat-title">Total Vehicles Visited Today</div>
+          <div className="campus-stat-desc">Vehicle check-ins logged today</div>
         </div>
-        <div className="campus-stat-icon-box icon-box-visited" title="Total vehicles visited">
+        <div className="campus-stat-icon-box icon-box-visited" title="Total vehicles visited today">
           <VehicleEntryIcon size={26} />
         </div>
       </div>
 
-      {/* 3. Total Visitor Passes */}
+      {/* 3. Total Passes Generated Today */}
       <div className="campus-stat-card card-passes">
         <div className="campus-stat-info">
           <div className="stat-badge-row">
             <span className="stat-badge stat-badge-passes">
-              Passes Issued
+              Today's Passes
             </span>
           </div>
           <div className="campus-stat-value">
             {loading ? "…" : stats.total_passes}
           </div>
-          <div className="campus-stat-title">Total Passes Generated</div>
-          <div className="campus-stat-desc">Pre-approved resident & walk-in passes</div>
+          <div className="campus-stat-title">Passes Generated Today</div>
+          <div className="campus-stat-desc">Created for today's visitors</div>
         </div>
-        <div className="campus-stat-icon-box icon-box-passes" title="Total visitor passes generated">
+        <div className="campus-stat-icon-box icon-box-passes" title="Total passes generated today">
           <QrTicketIcon size={26} />
         </div>
       </div>
