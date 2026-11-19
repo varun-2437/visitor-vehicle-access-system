@@ -903,54 +903,56 @@ code, kbd, pre, samp {
   transition: all 0.4s ease;
 }
 
-/* Light mode: Warm rose-crimson sketch blending matching my.amrita style */
+/* Base and Light mode: Warm rose-crimson sketch blending matching my.amrita style */
+.sketch-gif,
+:root .sketch-gif,
 [data-theme="light"] .sketch-gif {
-  opacity: 0.5;
-  filter: sepia(100%) hue-rotate(315deg) saturate(240%) contrast(100%);
+  opacity: 0.72;
+  filter: sepia(100%) hue-rotate(315deg) saturate(240%) contrast(115%);
 }
 
 /* Dark mode: Soft glowing rose-crimson sketch blending */
 [data-theme="dark"] .sketch-gif {
-  opacity: 0.5;
+  opacity: 0.68;
   filter: invert(100%) hue-rotate(300deg) brightness(1.2) drop-shadow(0 0 12px rgba(225, 29, 72, 0.35));
 }
 
 .gif-top-left {
-  top: 0;
-  left: 0;
-  max-width: 350px;
+  top: 10px;
+  left: 10px;
+  max-width: 380px;
 }
 
 .gif-top-right {
-  top: 0;
-  right: 0;
-  max-width: 350px;
+  top: 10px;
+  right: 10px;
+  max-width: 380px;
 }
 
 .gif-mid-left {
   top: 50%;
-  left: 0;
+  left: 10px;
   transform: translateY(-50%);
-  max-width: 300px;
+  max-width: 340px;
 }
 
 .gif-mid-right {
   top: 50%;
-  right: 0;
+  right: 10px;
   transform: translateY(-50%);
-  max-width: 300px;
+  max-width: 340px;
 }
 
 .gif-bottom-left {
-  bottom: 0;
-  left: 0;
-  max-width: 350px;
+  bottom: 10px;
+  left: 10px;
+  max-width: 380px;
 }
 
 .gif-bottom-right {
-  bottom: 0;
-  right: 0;
-  max-width: 350px;
+  bottom: 10px;
+  right: 10px;
+  max-width: 380px;
 }
 
 @media (max-width: 1200px) {

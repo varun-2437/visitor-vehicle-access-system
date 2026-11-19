@@ -78,6 +78,7 @@ Thumbs.db
 *.mp4
 *.avi
 *.gif
+!frontend/src/assets/campus_gifs/*.gif
 
 # Runtime DB & Generated Images
 *.db

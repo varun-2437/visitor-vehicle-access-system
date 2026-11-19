@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import ampGif from "../assets/campus_gifs/Amp.gif";
+import amvGif from "../assets/campus_gifs/Amv.gif";
 import blrGif from "../assets/campus_gifs/Blr.gif";
 import cbeGif from "../assets/campus_gifs/Cbe.gif";
 import chnGif from "../assets/campus_gifs/Chn.gif";
@@ -17,14 +19,14 @@ export default function CampusSketchBG() {
     setLoadedState((prev) => ({ ...prev, [key]: false }));
   };
 
-  // 6 distinct campus sketch GIFs positioned cleanly without overlap
+  // Authentic Amrita University campus sketch GIFs positioned gracefully around cards
   const gifs = [
-    { key: "blr", src: blrGif, alt: "Bengaluru Campus", className: "sketch-gif gif-top-left" },
-    { key: "cbe", src: cbeGif, alt: "Coimbatore Campus", className: "sketch-gif gif-top-right" },
-    { key: "chn", src: chnGif, alt: "Chennai Campus", className: "sketch-gif gif-mid-left" },
-    { key: "fbd", src: fbdGif, alt: "Faridabad Campus", className: "sketch-gif gif-mid-right" },
-    { key: "khi", src: khiGif, alt: "Kollam Campus", className: "sketch-gif gif-bottom-left" },
-    { key: "mys", src: mysGif, alt: "Mysuru Campus", className: "sketch-gif gif-bottom-right" },
+    { key: "amv-top-left", src: amvGif, alt: "Amrita Coimbatore Campus", className: "sketch-gif gif-top-left" },
+    { key: "amp-top-right", src: ampGif, alt: "Amrita Amritapuri Campus", className: "sketch-gif gif-top-right" },
+    { key: "chn-mid-left", src: chnGif, alt: "Amrita Chennai Campus", className: "sketch-gif gif-mid-left" },
+    { key: "fbd-mid-right", src: fbdGif, alt: "Amrita Faridabad Campus", className: "sketch-gif gif-mid-right" },
+    { key: "khi-bottom-left", src: khiGif, alt: "Amrita Kollam Campus", className: "sketch-gif gif-bottom-left" },
+    { key: "blr-bottom-right", src: blrGif, alt: "Amrita Bengaluru Campus", className: "sketch-gif gif-bottom-right" },
   ];
 
   return (
