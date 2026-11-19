@@ -38,7 +38,7 @@ var/
 .env.local
 .env.*.local
 *.env
-atlas-credentials.env
+friend_repo/
 
 # Node / frontend
 node_modules/
