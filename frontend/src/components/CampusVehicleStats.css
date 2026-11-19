@@ -1,0 +1,194 @@
+.campus-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.campus-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.campus-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.campus-stat-card.card-inside {
+  border-left: 4px solid #10b981;
+}
+
+.campus-stat-card.card-visited {
+  border-left: 4px solid var(--primary);
+}
+
+.campus-stat-card.card-passes {
+  border-left: 4px solid #6366f1;
+}
+
+.campus-stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.stat-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stat-badge-inside {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+[data-theme="dark"] .stat-badge-inside {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.stat-badge-visited {
+  background: rgba(168, 27, 52, 0.1);
+  color: var(--primary);
+  border: 1px solid rgba(168, 27, 52, 0.25);
+}
+
+[data-theme="dark"] .stat-badge-visited {
+  background: rgba(225, 29, 72, 0.2);
+  color: #fb7185;
+  border: 1px solid rgba(225, 29, 72, 0.4);
+}
+
+.stat-badge-passes {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="dark"] .stat-badge-passes {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+.stat-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  animation: statPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes statPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.4;
+  }
+}
+
+.campus-stat-value {
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.campus-stat-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.campus-stat-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.campus-stat-icon-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.campus-stat-card:hover .campus-stat-icon-box {
+  transform: scale(1.08);
+}
+
+.icon-box-inside {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+[data-theme="dark"] .icon-box-inside {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.icon-box-visited {
+  background: rgba(168, 27, 52, 0.12);
+  color: var(--primary);
+}
+
+[data-theme="dark"] .icon-box-visited {
+  background: rgba(225, 29, 72, 0.2);
+  color: #fb7185;
+}
+
+.icon-box-passes {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+[data-theme="dark"] .icon-box-passes {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+@media (max-width: 768px) {
+  .campus-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .campus-stat-value {
+    font-size: 1.8rem;
+  }
+}

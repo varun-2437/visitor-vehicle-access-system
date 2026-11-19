@@ -3,6 +3,7 @@ import API from "../api";
 import Navbar from "../components/Navbar";
 import Toast from "../components/Toast";
 import CampusSketchBG from "../components/CampusSketchBG";
+import CampusVehicleStats from "../components/CampusVehicleStats";
 import { formatDateTime, getDateKey, formatDateGroupHeader } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
 import {
@@ -392,6 +393,9 @@ export default function AdminDashboard() {
 
       <div className="dashboard">
         <h2>Admin Console</h2>
+
+        {/* Top Campus Vehicle Statistics Overview */}
+        <CampusVehicleStats />
 
         {message && <div className="alert alert-success">{message}</div>}
         {error && <div className="alert alert-error">{error}</div>}

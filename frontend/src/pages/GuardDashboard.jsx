@@ -7,6 +7,7 @@ import CampusSketchBG from "../components/CampusSketchBG";
 import { formatDateTime, formatTimeOnly } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
 import PrintablePassModal from "../components/PrintablePassModal";
+import CampusVehicleStats from "../components/CampusVehicleStats";
 import {
   KeyboardIcon,
   SearchIcon,
@@ -473,6 +474,9 @@ export default function GuardDashboard() {
             <span><span className="shortcut-badge">Alt + R</span> Refresh Logs</span>
           </div>
         )}
+
+        {/* Top Campus Vehicle Statistics Overview */}
+        <CampusVehicleStats refreshTrigger={todayLogs.length + todayPasses.length} />
 
         {/* Dashboard Section Navigation Tabs */}
         <div className="tabs">

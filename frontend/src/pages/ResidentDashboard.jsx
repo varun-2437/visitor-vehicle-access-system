@@ -6,6 +6,7 @@ import CampusSketchBG from "../components/CampusSketchBG";
 import { formatDateTime } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
 import PrintablePassModal from "../components/PrintablePassModal";
+import CampusVehicleStats from "../components/CampusVehicleStats";
 import {
   SearchIcon,
   SortIcon,
@@ -223,6 +224,9 @@ export default function ResidentDashboard() {
 
       <div className="dashboard">
         <h2>Resident Portal</h2>
+
+        {/* Top Campus Vehicle Statistics Overview */}
+        <CampusVehicleStats refreshTrigger={passes.length} />
 
         {message && <div className="alert alert-success">{message}</div>}
         {error && <div className="alert alert-error">{error}</div>}

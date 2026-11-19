@@ -2,6 +2,7 @@ import os
 import qrcode
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
@@ -286,4 +287,46 @@ def get_today_logs(
         query = query.filter(AccessLog.timestamp >= since)
 
     return query.order_by(AccessLog.timestamp.desc()).all()
+
+
+@router.get("/stats")
+def get_campus_vehicle_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get live campus vehicle statistics:
+    - vehicles_inside: Active vehicles currently inside campus
+    - total_visited: Cumulative vehicles that have entered campus
+    - total_passes: Total visitor passes created
+    """
+    vehicles_inside = (
+        db.query(VisitorPass)
+        .filter(
+            VisitorPass.status.in_([PassStatus.in_campus, PassStatus.used]),
+            VisitorPass.vehicle_number.isnot(None),
+            func.trim(VisitorPass.vehicle_number) != "",
+        )
+        .count()
+    )
+
+    total_visited = (
+        db.query(AccessLog)
+        .join(VisitorPass)
+        .filter(
+            AccessLog.action == LogAction.entry,
+            VisitorPass.vehicle_number.isnot(None),
+            func.trim(VisitorPass.vehicle_number) != "",
+        )
+        .count()
+    )
+
+    total_passes = db.query(VisitorPass).count()
+
+    return {
+        "vehicles_inside": vehicles_inside,
+        "total_visited": total_visited,
+        "total_passes": total_passes,
+    }
+
 
