@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { formatDateTime } from "../utils/datetime";
+import { formatDateTime, formatPassId } from "../utils/datetime";
 import {
   PrinterIcon,
   DownloadIcon,
@@ -158,7 +158,7 @@ export default function PrintablePassModal({ pass, onClose, hostInfo }) {
               DIGITAL VISITOR GATE PASS
             </h2>
             <div className="pass-serial">
-              PASS REF: <strong>#VP-{String(pass.id).padStart(5, "0")}</strong>
+              PASS REF: <strong>{formatPassId(pass.id)}</strong>
             </div>
           </div>
 

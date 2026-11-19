@@ -4,7 +4,7 @@ import API from "../api";
 import Navbar from "../components/Navbar";
 import Toast from "../components/Toast";
 import CampusSketchBG from "../components/CampusSketchBG";
-import { formatDateTime, formatTimeOnly } from "../utils/datetime";
+import { formatDateTime, formatTimeOnly, formatPassId } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
 import PrintablePassModal from "../components/PrintablePassModal";
 import CampusVehicleStats from "../components/CampusVehicleStats";
@@ -135,6 +135,7 @@ export default function GuardDashboard() {
 
   const handleExportPasses = () => {
     exportToCSV("today_approved_passes.csv", filteredPasses, [
+      { label: "Pass ID", accessor: (r) => formatPassId(r.id) },
       { label: "Visitor Name", accessor: "visitor_name" },
       { label: "Vehicle Number", accessor: (r) => r.vehicle_number || "N/A" },
       { label: "Purpose", accessor: (r) => r.purpose || "N/A" },
@@ -149,6 +150,7 @@ export default function GuardDashboard() {
   const handleExportLogs = () => {
     exportToCSV("today_vehicle_logs.csv", filteredLogs, [
       { label: "Log ID", accessor: "id" },
+      { label: "Pass ID", accessor: (r) => r.visitor_pass?.id ? formatPassId(r.visitor_pass.id) : "N/A" },
       { label: "Gate Action", accessor: (r) => r.action.toUpperCase() },
       { label: "Vehicle Number", accessor: (r) => r.visitor_pass?.vehicle_number || "N/A" },
       { label: "Visitor Name", accessor: (r) => r.visitor_pass?.visitor_name || "N/A" },
@@ -329,6 +331,7 @@ export default function GuardDashboard() {
         {scanResult.visitor_pass && (
           <>
             <div className="result-details">
+              <div className="detail-row"><strong>Pass ID:</strong> <span className="pass-id-tag">{formatPassId(scanResult.visitor_pass.id)}</span></div>
               <div className="detail-row"><strong>Visitor:</strong> {scanResult.visitor_pass.visitor_name}</div>
               <div className="detail-row"><strong>Vehicle Number:</strong> <code>{scanResult.visitor_pass.vehicle_number || "Not specified"}</code></div>
               <div className="detail-row"><strong>Purpose:</strong> {scanResult.visitor_pass.purpose || "Not specified"}</div>
@@ -449,7 +452,11 @@ export default function GuardDashboard() {
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
+    const passIdStr = formatPassId(p.id).toLowerCase();
+    const rawIdStr = String(p.id || "");
     return (
+      passIdStr.includes(q) ||
+      rawIdStr.includes(q) ||
       (p.visitor_name && p.visitor_name.toLowerCase().includes(q)) ||
       (p.vehicle_number && p.vehicle_number.toLowerCase().includes(q)) ||
       (p.purpose && p.purpose.toLowerCase().includes(q)) ||
@@ -463,7 +470,11 @@ export default function GuardDashboard() {
     if (actionFilter !== "all" && log.action !== actionFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
+    const passIdStr = log.visitor_pass?.id ? formatPassId(log.visitor_pass.id).toLowerCase() : "";
+    const rawPassIdStr = log.visitor_pass?.id ? String(log.visitor_pass.id) : "";
     return (
+      passIdStr.includes(q) ||
+      rawPassIdStr.includes(q) ||
       (log.action && log.action.toLowerCase().includes(q)) ||
       (log.visitor_pass?.vehicle_number && log.visitor_pass.vehicle_number.toLowerCase().includes(q)) ||
       (log.visitor_pass?.visitor_name && log.visitor_pass.visitor_name.toLowerCase().includes(q)) ||
@@ -837,6 +848,7 @@ export default function GuardDashboard() {
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th>Pass ID</th>
                       <th>Visitor Name</th>
                       <th>Vehicle Number</th>
                       <th>Purpose</th>
@@ -854,6 +866,7 @@ export default function GuardDashboard() {
                         onClick={() => setPrintPass(p)}
                         title="Click to view complete pass badge & details"
                       >
+                        <td><span className="pass-id-tag">{formatPassId(p.id)}</span></td>
                         <td><strong>{p.visitor_name}</strong></td>
                         <td><code>{p.vehicle_number || "—"}</code></td>
                         <td>{p.purpose || "—"}</td>
@@ -1019,6 +1032,7 @@ export default function GuardDashboard() {
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th>Pass ID</th>
                       <th>Gate Action</th>
                       <th>Vehicle Number</th>
                       <th>Visitor Name</th>
@@ -1035,6 +1049,7 @@ export default function GuardDashboard() {
                         onClick={() => log.visitor_pass && setPrintPass(log.visitor_pass)}
                         title={log.visitor_pass ? "Click to view associated visitor pass badge" : undefined}
                       >
+                        <td>{log.visitor_pass?.id ? <span className="pass-id-tag">{formatPassId(log.visitor_pass.id)}</span> : "—"}</td>
                         <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
                         <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
                         <td>{log.visitor_pass?.visitor_name || "—"}</td>

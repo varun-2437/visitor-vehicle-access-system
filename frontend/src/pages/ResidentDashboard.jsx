@@ -3,10 +3,9 @@ import API from "../api";
 import Navbar from "../components/Navbar";
 import Toast from "../components/Toast";
 import CampusSketchBG from "../components/CampusSketchBG";
-import { formatDateTime } from "../utils/datetime";
+import { formatDateTime, formatPassId } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
 import PrintablePassModal from "../components/PrintablePassModal";
-import CampusVehicleStats from "../components/CampusVehicleStats";
 import {
   SearchIcon,
   SortIcon,
@@ -93,34 +92,6 @@ export default function ResidentDashboard() {
     setFromDate("");
     setToDate("");
     setSortOrder("date_desc");
-  };
-
-  const handleSelectInsideVehicles = () => {
-    setStatusFilter("in_campus");
-    setDatePreset("all");
-    setFromDate("");
-    setToDate("");
-    setTimeout(() => {
-      document.querySelector(".data-table-container")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  };
-
-  const handleSelectVisitedVehicles = () => {
-    setStatusFilter("in_campus");
-    setDatePreset("today");
-    applyDatePreset("today");
-    setTimeout(() => {
-      document.querySelector(".data-table-container")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  };
-
-  const handleSelectTodayPasses = () => {
-    setStatusFilter("all");
-    setDatePreset("today");
-    applyDatePreset("today");
-    setTimeout(() => {
-      document.querySelector(".data-table-container")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
   };
 
   const filterByDateRange = (list, dateField = "created_at") => {
@@ -224,7 +195,11 @@ export default function ResidentDashboard() {
 
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
+    const passIdStr = formatPassId(p.id).toLowerCase();
+    const rawIdStr = String(p.id || "");
     return (
+      passIdStr.includes(q) ||
+      rawIdStr.includes(q) ||
       (p.visitor_name && p.visitor_name.toLowerCase().includes(q)) ||
       (p.vehicle_number && p.vehicle_number.toLowerCase().includes(q)) ||
       (p.purpose && p.purpose.toLowerCase().includes(q)) ||
@@ -234,6 +209,7 @@ export default function ResidentDashboard() {
 
   const handleExportCSV = () => {
     exportToCSV("my_visitor_passes.csv", filteredPasses, [
+      { label: "Pass ID", accessor: (r) => formatPassId(r.id) },
       { label: "Visitor Name", accessor: "visitor_name" },
       { label: "Vehicle Number", accessor: (r) => r.vehicle_number || "N/A" },
       { label: "Purpose", accessor: (r) => r.purpose || "N/A" },
@@ -252,14 +228,6 @@ export default function ResidentDashboard() {
 
       <div className="dashboard">
         <h2>Resident Portal</h2>
-
-        {/* Top Campus Vehicle Statistics Overview (Click any card to filter respective passes) */}
-        <CampusVehicleStats
-          refreshTrigger={passes.length}
-          onSelectInside={handleSelectInsideVehicles}
-          onSelectVisited={handleSelectVisitedVehicles}
-          onSelectPasses={handleSelectTodayPasses}
-        />
 
         {message && <div className="alert alert-success">{message}</div>}
         {error && <div className="alert alert-error">{error}</div>}
@@ -472,6 +440,7 @@ export default function ResidentDashboard() {
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th>Pass ID</th>
                     <th>Visitor</th>
                     <th>Vehicle</th>
                     <th>Purpose</th>
@@ -483,6 +452,7 @@ export default function ResidentDashboard() {
                 <tbody>
                   {filteredPasses.map((p) => (
                     <tr key={p.id} style={{ cursor: "pointer" }} onClick={() => setSelectedPass(p)}>
+                      <td><span className="pass-id-tag">{formatPassId(p.id)}</span></td>
                       <td><strong>{p.visitor_name}</strong></td>
                       <td><code>{p.vehicle_number || "—"}</code></td>
                       <td>{p.purpose || "—"}</td>
@@ -526,10 +496,10 @@ export default function ResidentDashboard() {
             <button className="btn-close" onClick={() => setSelectedPass(null)} style={{ position: "absolute", top: "16px", right: "16px", background: "none", border: "none", cursor: "pointer" }}><CloseIcon size={18} /></button>
             
             <h3 style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-              <QrTicketIcon size={22} /> Pass Details: {selectedPass.visitor_name}
+              <QrTicketIcon size={22} /> Pass {formatPassId(selectedPass.id)}: {selectedPass.visitor_name}
             </h3>
             <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "16px" }}>
-              Vehicle Number: <code>{selectedPass.vehicle_number || "Walk-in / N/A"}</code> | Purpose: {selectedPass.purpose || "General Visit"}
+              Pass ID: <span className="pass-id-tag">{formatPassId(selectedPass.id)}</span> | Vehicle: <code>{selectedPass.vehicle_number || "Walk-in / N/A"}</code> | Purpose: {selectedPass.purpose || "General Visit"}
             </p>
 
             <div style={{ marginBottom: "16px", textAlign: "center" }}>

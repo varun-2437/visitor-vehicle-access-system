@@ -66,3 +66,11 @@ export function formatDateGroupHeader(dateKey) {
     day: "numeric",
   });
 }
+
+/**
+ * Standardizes vehicle pass ID formatting, e.g. 1 -> "#VP-00001"
+ */
+export function formatPassId(id) {
+  if (id === null || id === undefined) return "—";
+  return `#VP-${String(id).padStart(5, "0")}`;
+}

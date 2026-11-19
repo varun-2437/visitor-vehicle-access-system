@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar";
 import Toast from "../components/Toast";
 import CampusSketchBG from "../components/CampusSketchBG";
 import CampusVehicleStats from "../components/CampusVehicleStats";
-import { formatDateTime, getDateKey, formatDateGroupHeader } from "../utils/datetime";
+import { formatDateTime, getDateKey, formatDateGroupHeader, formatPassId } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
 import {
   SearchIcon,
@@ -109,7 +109,8 @@ export default function AdminDashboard() {
 
   const handleExportLogsCSV = () => {
     exportToCSV("system_access_logs.csv", dateFilteredLogs, [
-      { label: "ID", accessor: "id" },
+      { label: "Log ID", accessor: "id" },
+      { label: "Pass ID", accessor: (r) => r.visitor_pass?.id ? formatPassId(r.visitor_pass.id) : "N/A" },
       { label: "Gate Action", accessor: (r) => r.action.toUpperCase() },
       { label: "Visitor Name", accessor: (r) => r.visitor_pass?.visitor_name || "N/A" },
       { label: "Vehicle Number", accessor: (r) => r.visitor_pass?.vehicle_number || "N/A" },
@@ -327,7 +328,11 @@ export default function AdminDashboard() {
     if (actionFilter !== "all" && log.action !== actionFilter) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase().trim();
+    const passIdStr = log.visitor_pass?.id ? formatPassId(log.visitor_pass.id).toLowerCase() : "";
+    const rawPassIdStr = log.visitor_pass?.id ? String(log.visitor_pass.id) : "";
     return (
+      passIdStr.includes(q) ||
+      rawPassIdStr.includes(q) ||
       (log.action && log.action.toLowerCase().includes(q)) ||
       (log.visitor_pass?.vehicle_number && log.visitor_pass.vehicle_number.toLowerCase().includes(q)) ||
       (log.visitor_pass?.visitor_name && log.visitor_pass.visitor_name.toLowerCase().includes(q)) ||
@@ -814,7 +819,8 @@ export default function AdminDashboard() {
                       <table className="data-table" style={{ margin: 0 }}>
                         <thead>
                           <tr>
-                            <th>ID</th>
+                            <th>Log ID</th>
+                            <th>Pass ID</th>
                             <th>Action</th>
                             <th>Visitor Name</th>
                             <th>Vehicle Number</th>
@@ -826,6 +832,7 @@ export default function AdminDashboard() {
                           {displayedLogs.map((log) => (
                             <tr key={log.id}>
                               <td>{log.id}</td>
+                              <td>{log.visitor_pass?.id ? <span className="pass-id-tag">{formatPassId(log.visitor_pass.id)}</span> : "—"}</td>
                               <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
                               <td><strong>{log.visitor_pass?.visitor_name || "—"}</strong></td>
                               <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
