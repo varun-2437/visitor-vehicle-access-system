@@ -38,7 +38,6 @@ var/
 .env.local
 .env.*.local
 *.env
-friend_repo/
 
 # Node / frontend
 node_modules/
