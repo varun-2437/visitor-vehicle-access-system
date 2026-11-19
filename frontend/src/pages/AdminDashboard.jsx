@@ -385,6 +385,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSelectInsideVehicles = () => {
+    setActiveTab("logs");
+    setDatePreset("today");
+    applyDatePreset("today");
+    setTimeout(() => {
+      document.querySelector(".tabs")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  const handleSelectVisitedVehicles = () => {
+    setActiveTab("logs");
+    setActionFilter("entry");
+    setDatePreset("today");
+    applyDatePreset("today");
+    setTimeout(() => {
+      document.querySelector(".tabs")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
   return (
     <>
       <CampusSketchBG />
@@ -394,8 +413,12 @@ export default function AdminDashboard() {
       <div className="dashboard">
         <h2>Admin Console</h2>
 
-        {/* Top Campus Vehicle Statistics Overview */}
-        <CampusVehicleStats />
+        {/* Top Campus Vehicle Statistics Overview (Click any card to inspect respective logs) */}
+        <CampusVehicleStats
+          refreshTrigger={logs.length}
+          onSelectInside={handleSelectInsideVehicles}
+          onSelectVisited={handleSelectVisitedVehicles}
+        />
 
         {message && <div className="alert alert-success">{message}</div>}
         {error && <div className="alert alert-error">{error}</div>}

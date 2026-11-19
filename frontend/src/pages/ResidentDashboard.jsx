@@ -95,6 +95,34 @@ export default function ResidentDashboard() {
     setSortOrder("date_desc");
   };
 
+  const handleSelectInsideVehicles = () => {
+    setStatusFilter("in_campus");
+    setDatePreset("all");
+    setFromDate("");
+    setToDate("");
+    setTimeout(() => {
+      document.querySelector(".data-table-container")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  const handleSelectVisitedVehicles = () => {
+    setStatusFilter("in_campus");
+    setDatePreset("today");
+    applyDatePreset("today");
+    setTimeout(() => {
+      document.querySelector(".data-table-container")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  const handleSelectTodayPasses = () => {
+    setStatusFilter("all");
+    setDatePreset("today");
+    applyDatePreset("today");
+    setTimeout(() => {
+      document.querySelector(".data-table-container")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
   const filterByDateRange = (list, dateField = "created_at") => {
     return list.filter((item) => {
       const rawDate = item[dateField] || item.created_at;
@@ -225,8 +253,13 @@ export default function ResidentDashboard() {
       <div className="dashboard">
         <h2>Resident Portal</h2>
 
-        {/* Top Campus Vehicle Statistics Overview */}
-        <CampusVehicleStats refreshTrigger={passes.length} />
+        {/* Top Campus Vehicle Statistics Overview (Click any card to filter respective passes) */}
+        <CampusVehicleStats
+          refreshTrigger={passes.length}
+          onSelectInside={handleSelectInsideVehicles}
+          onSelectVisited={handleSelectVisitedVehicles}
+          onSelectPasses={handleSelectTodayPasses}
+        />
 
         {message && <div className="alert alert-success">{message}</div>}
         {error && <div className="alert alert-error">{error}</div>}

@@ -24,6 +24,61 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
+.campus-stat-card.is-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.campus-stat-card.is-clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.campus-stat-card.is-clickable:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.stat-click-hint {
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  opacity: 0.85;
+}
+
+.campus-stat-card.card-inside .stat-click-hint {
+  color: #059669;
+}
+
+[data-theme="dark"] .campus-stat-card.card-inside .stat-click-hint {
+  color: #34d399;
+}
+
+.campus-stat-card.card-visited .stat-click-hint {
+  color: var(--primary);
+}
+
+[data-theme="dark"] .campus-stat-card.card-visited .stat-click-hint {
+  color: #fb7185;
+}
+
+.campus-stat-card.card-passes .stat-click-hint {
+  color: #4f46e5;
+}
+
+[data-theme="dark"] .campus-stat-card.card-passes .stat-click-hint {
+  color: #818cf8;
+}
+
+.campus-stat-card:hover .stat-click-hint {
+  transform: translateX(3px);
+  opacity: 1;
+}
+
 .campus-stat-card.card-inside {
   border-left: 4px solid #10b981;
 }

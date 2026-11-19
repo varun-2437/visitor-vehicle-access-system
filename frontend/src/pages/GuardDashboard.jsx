@@ -415,6 +415,36 @@ export default function GuardDashboard() {
     }, 0);
   };
 
+  const handleSelectInsideVehicles = () => {
+    setActiveTab("passes");
+    setStatusFilter("in_campus");
+    setDatePreset("today");
+    applyDatePreset("today");
+    setTimeout(() => {
+      document.querySelector(".panel")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  const handleSelectVisitedVehicles = () => {
+    setActiveTab("logs");
+    setActionFilter("entry");
+    setDatePreset("today");
+    applyDatePreset("today");
+    setTimeout(() => {
+      document.querySelector(".panel")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  const handleSelectTodayPasses = () => {
+    setActiveTab("passes");
+    setStatusFilter("all");
+    setDatePreset("today");
+    applyDatePreset("today");
+    setTimeout(() => {
+      document.querySelector(".panel")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
   const filteredPasses = sortData(todayPasses.filter((p) => {
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
     if (!searchQuery.trim()) return true;
@@ -475,8 +505,13 @@ export default function GuardDashboard() {
           </div>
         )}
 
-        {/* Top Campus Vehicle Statistics Overview */}
-        <CampusVehicleStats refreshTrigger={todayLogs.length + todayPasses.length} />
+        {/* Top Campus Vehicle Statistics Overview (Click any card to view respective passes/logs) */}
+        <CampusVehicleStats
+          refreshTrigger={todayLogs.length + todayPasses.length}
+          onSelectInside={handleSelectInsideVehicles}
+          onSelectVisited={handleSelectVisitedVehicles}
+          onSelectPasses={handleSelectTodayPasses}
+        />
 
         {/* Dashboard Section Navigation Tabs */}
         <div className="tabs">
@@ -813,7 +848,12 @@ export default function GuardDashboard() {
                   </thead>
                   <tbody>
                     {displayedPasses.map((p) => (
-                      <tr key={p.id}>
+                      <tr
+                        key={p.id}
+                        style={{ cursor: "pointer" }}
+                        onClick={() => setPrintPass(p)}
+                        title="Click to view complete pass badge & details"
+                      >
                         <td><strong>{p.visitor_name}</strong></td>
                         <td><code>{p.vehicle_number || "—"}</code></td>
                         <td>{p.purpose || "—"}</td>
@@ -824,7 +864,7 @@ export default function GuardDashboard() {
                           <button
                             type="button"
                             className="btn btn-outline btn-sm"
-                            onClick={() => setPrintPass(p)}
+                            onClick={(e) => { e.stopPropagation(); setPrintPass(p); }}
                             style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
                             title="View & Print Pass Badge / PDF"
                           >
@@ -989,7 +1029,12 @@ export default function GuardDashboard() {
                   </thead>
                   <tbody>
                     {displayedLogs.map((log) => (
-                      <tr key={log.id}>
+                      <tr
+                        key={log.id}
+                        style={{ cursor: log.visitor_pass ? "pointer" : "default" }}
+                        onClick={() => log.visitor_pass && setPrintPass(log.visitor_pass)}
+                        title={log.visitor_pass ? "Click to view associated visitor pass badge" : undefined}
+                      >
                         <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
                         <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
                         <td>{log.visitor_pass?.visitor_name || "—"}</td>

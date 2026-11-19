@@ -3,7 +3,12 @@ import API from "../api";
 import { CarIcon, VehicleEntryIcon, QrTicketIcon } from "./Icons";
 import "./CampusVehicleStats.css";
 
-export default function CampusVehicleStats({ refreshTrigger = 0 }) {
+export default function CampusVehicleStats({
+  refreshTrigger = 0,
+  onSelectInside,
+  onSelectVisited,
+  onSelectPasses,
+}) {
   const [stats, setStats] = useState({
     vehicles_inside: 0,
     total_visited: 0,
@@ -45,10 +50,24 @@ export default function CampusVehicleStats({ refreshTrigger = 0 }) {
     return () => clearInterval(interval);
   }, [refreshTrigger]);
 
+  const handleKeyDown = (e, callback) => {
+    if (callback && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      callback();
+    }
+  };
+
   return (
     <div className="campus-stats-grid" role="region" aria-label="Campus Vehicle Live Statistics">
       {/* 1. Vehicles Currently Inside Campus (Present Day) */}
-      <div className="campus-stat-card card-inside">
+      <div
+        className={`campus-stat-card card-inside ${onSelectInside ? "is-clickable" : ""}`}
+        onClick={onSelectInside}
+        onKeyDown={(e) => handleKeyDown(e, onSelectInside)}
+        role={onSelectInside ? "button" : undefined}
+        tabIndex={onSelectInside ? 0 : undefined}
+        title={onSelectInside ? "Click to view vehicles currently inside campus" : undefined}
+      >
         <div className="campus-stat-info">
           <div className="stat-badge-row">
             <span className="stat-badge stat-badge-inside">
@@ -60,6 +79,9 @@ export default function CampusVehicleStats({ refreshTrigger = 0 }) {
           </div>
           <div className="campus-stat-title">Vehicles Inside Campus</div>
           <div className="campus-stat-desc">Active inside campus today (resets daily)</div>
+          {onSelectInside && (
+            <span className="stat-click-hint">View vehicles inside ➔</span>
+          )}
         </div>
         <div className="campus-stat-icon-box icon-box-inside" title="Vehicles currently inside campus today">
           <CarIcon size={26} />
@@ -67,7 +89,14 @@ export default function CampusVehicleStats({ refreshTrigger = 0 }) {
       </div>
 
       {/* 2. Total Vehicles Visited Today */}
-      <div className="campus-stat-card card-visited">
+      <div
+        className={`campus-stat-card card-visited ${onSelectVisited ? "is-clickable" : ""}`}
+        onClick={onSelectVisited}
+        onKeyDown={(e) => handleKeyDown(e, onSelectVisited)}
+        role={onSelectVisited ? "button" : undefined}
+        tabIndex={onSelectVisited ? 0 : undefined}
+        title={onSelectVisited ? "Click to view today's vehicle visits" : undefined}
+      >
         <div className="campus-stat-info">
           <div className="stat-badge-row">
             <span className="stat-badge stat-badge-visited">
@@ -79,6 +108,9 @@ export default function CampusVehicleStats({ refreshTrigger = 0 }) {
           </div>
           <div className="campus-stat-title">Total Vehicles Visited Today</div>
           <div className="campus-stat-desc">Vehicle check-ins logged today</div>
+          {onSelectVisited && (
+            <span className="stat-click-hint">View today's visits ➔</span>
+          )}
         </div>
         <div className="campus-stat-icon-box icon-box-visited" title="Total vehicles visited today">
           <VehicleEntryIcon size={26} />
@@ -86,7 +118,14 @@ export default function CampusVehicleStats({ refreshTrigger = 0 }) {
       </div>
 
       {/* 3. Total Passes Generated Today */}
-      <div className="campus-stat-card card-passes">
+      <div
+        className={`campus-stat-card card-passes ${onSelectPasses ? "is-clickable" : ""}`}
+        onClick={onSelectPasses}
+        onKeyDown={(e) => handleKeyDown(e, onSelectPasses)}
+        role={onSelectPasses ? "button" : undefined}
+        tabIndex={onSelectPasses ? 0 : undefined}
+        title={onSelectPasses ? "Click to view today's visitor passes" : undefined}
+      >
         <div className="campus-stat-info">
           <div className="stat-badge-row">
             <span className="stat-badge stat-badge-passes">
@@ -98,6 +137,9 @@ export default function CampusVehicleStats({ refreshTrigger = 0 }) {
           </div>
           <div className="campus-stat-title">Passes Generated Today</div>
           <div className="campus-stat-desc">Created for today's visitors</div>
+          {onSelectPasses && (
+            <span className="stat-click-hint">View today's passes ➔</span>
+          )}
         </div>
         <div className="campus-stat-icon-box icon-box-passes" title="Total passes generated today">
           <QrTicketIcon size={26} />
