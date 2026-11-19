@@ -29,8 +29,14 @@ function HomeRedirect() {
 
 function App() {
   useEffect(() => {
-    // Initialize CSRF token on app load
-    API.get("/api/csrf-token").catch(err => console.error("Failed to fetch CSRF token:", err));
+    // Initialize CSRF token on app load and persist in sessionStorage
+    API.get("/api/csrf-token")
+      .then((res) => {
+        if (res.data?.csrf_token) {
+          sessionStorage.setItem("csrf_token", res.data.csrf_token);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch CSRF token:", err));
   }, []);
 
   return (

@@ -6,6 +6,7 @@ import Toast from "../components/Toast";
 import CampusSketchBG from "../components/CampusSketchBG";
 import { formatDateTime, formatTimeOnly } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
+import PrintablePassModal from "../components/PrintablePassModal";
 import {
   KeyboardIcon,
   SearchIcon,
@@ -25,10 +26,12 @@ import {
   XCircleIcon,
   CalendarIcon,
   ClockIcon,
+  PrinterIcon,
 } from "../components/Icons";
 
 export default function GuardDashboard() {
   const [scanResult, setScanResult] = useState(null);
+  const [printPass, setPrintPass] = useState(null);
   const [lastSource, setLastSource] = useState(null); // 'qr' or 'manual'
   const [scanning, setScanning] = useState(false);
   const [manualToken, setManualToken] = useState("");
@@ -348,6 +351,17 @@ export default function GuardDashboard() {
                 </p>
               </div>
             )}
+
+            <div style={{ marginTop: "16px", textAlign: "center" }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setPrintPass(scanResult.visitor_pass)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <PrinterIcon size={16} /> Print Gate Pass / PDF
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -790,6 +804,7 @@ export default function GuardDashboard() {
                       <th>Host Resident / Flat</th>
                       <th>Pass Status</th>
                       <th>Expires Date & Time</th>
+                      <th>Action / Pass</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -801,6 +816,17 @@ export default function GuardDashboard() {
                         <td>{p.resident?.full_name || "—"} ({p.resident?.flat_number || "Gate"})</td>
                         <td>{renderStatusBadge(p.status)}</td>
                         <td>{formatDateTime(p.expires_at)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={() => setPrintPass(p)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            title="View & Print Pass Badge / PDF"
+                          >
+                            <PrinterIcon size={14} /> Print / PDF
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -986,6 +1012,14 @@ export default function GuardDashboard() {
           </div>
         )}
       </div>
+
+      {/* Printable Pass Modal (Formatted for Printing & PDF Export) */}
+      {printPass && (
+        <PrintablePassModal
+          pass={printPass}
+          onClose={() => setPrintPass(null)}
+        />
+      )}
     </>
   );
 }

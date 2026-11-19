@@ -19,10 +19,12 @@ API.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // Manually attach CSRF token for cross-origin requests
+  // Manually attach CSRF token for cross-origin requests (from sessionStorage or cookie)
   if (["post", "put", "patch", "delete"].includes(config.method?.toLowerCase())) {
     const match = document.cookie.match(new RegExp('(^|;\\s*)(XSRF-TOKEN)=([^;]*)'));
-    const csrfToken = match ? decodeURIComponent(match[3]) : null;
+    const cookieToken = match ? decodeURIComponent(match[3]) : null;
+    const sessionToken = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("csrf_token") : null;
+    const csrfToken = sessionToken || cookieToken;
     if (csrfToken) {
       config.headers["X-XSRF-TOKEN"] = csrfToken;
     }

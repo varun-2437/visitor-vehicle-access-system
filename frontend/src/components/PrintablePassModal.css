@@ -1,0 +1,285 @@
+/* Printable Pass Modal & Print Stylesheet */
+
+.printable-pass-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.printable-pass-modal {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal Actions Header (Screen Only) */
+.printable-pass-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  background: var(--bg-card-hover, rgba(255, 255, 255, 0.04));
+}
+
+.pass-action-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The Printable Ticket Card */
+.printable-pass-card {
+  padding: 24px;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.pass-header {
+  text-align: center;
+  padding-bottom: 14px;
+  border-bottom: 2px dashed #cbd5e1;
+  position: relative;
+}
+
+.pass-org-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #1e3a8a;
+  background: #dbeafe;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  margin-bottom: 6px;
+}
+
+.pass-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.pass-serial {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Status Banner */
+.pass-status-strip {
+  margin: 14px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-not_inside, .status-approved, .status-pending {
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+.status-in_campus, .status-used {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.status-exited {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.status-expired {
+  background: #ffe4e6;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+
+/* Details Grid */
+.pass-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: #f8fafc;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.pass-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.pass-field.full-width {
+  grid-column: span 2;
+}
+
+.pass-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.pass-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.pass-plate-box {
+  display: inline-block;
+  background: #fef08a;
+  color: #000000;
+  border: 2px solid #000000;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 900;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+}
+
+/* QR Code Display */
+.pass-qr-section {
+  text-align: center;
+  padding: 14px;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.pass-qr-image {
+  width: 190px;
+  height: 190px;
+  display: block;
+  margin: 0 auto 8px auto;
+  border-radius: 6px;
+  image-rendering: pixelated;
+}
+
+.pass-qr-token {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+  word-break: break-all;
+  margin: 0;
+}
+
+.pass-instructions {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.4;
+  text-align: center;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 10px;
+  margin: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   PRINT-ONLY STYLESHEET (Native PDF / A4 paper layout)
+   ───────────────────────────────────────────────────────────── */
+@media print {
+  /* Hide every element on the page except the printable card */
+  body * {
+    visibility: hidden !important;
+  }
+
+  .printable-pass-overlay,
+  .printable-pass-overlay * {
+    visibility: visible !important;
+  }
+
+  .printable-pass-overlay {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  .printable-pass-modal {
+    position: static !important;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .printable-pass-card {
+    border: 2px solid #000000 !important;
+    border-radius: 8px !important;
+    padding: 24px !important;
+    max-width: 480px !important;
+    margin: 20px auto !important;
+    page-break-inside: avoid !important;
+  }
+
+  .pass-qr-image {
+    width: 200px !important;
+    height: 200px !important;
+  }
+
+  .pass-plate-box {
+    background: #ffffff !important;
+    border: 2px solid #000000 !important;
+    color: #000000 !important;
+  }
+}

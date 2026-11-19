@@ -5,6 +5,7 @@ import Toast from "../components/Toast";
 import CampusSketchBG from "../components/CampusSketchBG";
 import { formatDateTime } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
+import PrintablePassModal from "../components/PrintablePassModal";
 import {
   SearchIcon,
   SortIcon,
@@ -16,6 +17,7 @@ import {
   CloseIcon,
   CalendarIcon,
   ClockIcon,
+  PrinterIcon,
 } from "../components/Icons";
 
 export default function ResidentDashboard() {
@@ -31,6 +33,7 @@ export default function ResidentDashboard() {
   const [datePreset, setDatePreset] = useState("all"); // 'all', 'today', 'yesterday', 'last7', 'custom'
 
   const [selectedPass, setSelectedPass] = useState(null);
+  const [printPass, setPrintPass] = useState(null);
   const [toast, setToast] = useState({ message: "", type: "info" });
   const [formData, setFormData] = useState({
     visitor_name: "", vehicle_number: "", purpose: "", hours_valid: 24,
@@ -128,6 +131,7 @@ export default function ResidentDashboard() {
       const qrPath = res.data.qr_image_path || "";
       setQrImage(qrPath.startsWith("data:") || qrPath.startsWith("http") ? qrPath : `http://${window.location.hostname}:8000${qrPath}`);
       setFormData({ visitor_name: "", vehicle_number: "", purpose: "", hours_valid: 24 });
+      setPrintPass(res.data);
       fetchPasses();
     } catch (err) {
       const errMsg = err.response?.data?.detail || "Failed to generate pass";
@@ -447,15 +451,27 @@ export default function ResidentDashboard() {
                       <td>{p.purpose || "—"}</td>
                       <td>{renderStatusBadge(p.status)}</td>
                       <td>{formatDateTime(p.created_at)}</td>
-                      <td>
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={(e) => { e.stopPropagation(); setSelectedPass(p); }}
-                          style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
-                        >
-                          <QrTicketIcon size={14} />
-                          {(p.status === "in_campus" || p.status === "used") ? "View Exit QR" : "View Pass QR"}
-                        </button>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => setSelectedPass(p)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            title="View QR Code"
+                          >
+                            <QrTicketIcon size={14} />
+                            {(p.status === "in_campus" || p.status === "used") ? "Exit QR" : "Pass QR"}
+                          </button>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => setPrintPass(p)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                            title="Open Printable Badge / Save as PDF"
+                          >
+                            <PrinterIcon size={14} />
+                            Print / PDF
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -520,11 +536,31 @@ export default function ResidentDashboard() {
               </div>
             )}
 
-            <div style={{ marginTop: "20px", textAlign: "right" }}>
+            <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                className="btn btn-primary"
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                onClick={() => {
+                  const toPrint = selectedPass;
+                  setSelectedPass(null);
+                  setPrintPass(toPrint);
+                }}
+              >
+                <PrinterIcon size={16} /> Print / Save PDF
+              </button>
               <button className="btn btn-outline" onClick={() => setSelectedPass(null)}>Close</button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Printable Pass Modal (Formatted for Printing & PDF Export) */}
+      {printPass && (
+        <PrintablePassModal
+          pass={printPass}
+          onClose={() => setPrintPass(null)}
+          hostInfo={JSON.parse(localStorage.getItem("user") || "null")}
+        />
       )}
     </>
   );
