@@ -8,6 +8,7 @@ const Login = lazy(() => import("./pages/Login"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const ResidentDashboard = lazy(() => import("./pages/ResidentDashboard"));
 const GuardDashboard = lazy(() => import("./pages/GuardDashboard"));
+const PhoneCameraStream = lazy(() => import("./pages/PhoneCameraStream"));
 
 function HomeRedirect() {
   const token = localStorage.getItem("token");
@@ -62,6 +63,8 @@ function App() {
               <GuardDashboard />
             </ProtectedRoute>
           } />
+
+          <Route path="/phone-camera" element={<PhoneCameraStream />} />
 
           <Route path="/" element={<HomeRedirect />} />
           <Route path="*" element={<HomeRedirect />} />

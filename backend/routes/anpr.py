@@ -12,6 +12,8 @@ import re
 import io
 import time
 import base64
+import socket
+import urllib.request
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
@@ -29,6 +31,29 @@ from auth import require_role
 from routes.qr import generate_qr_code_file
 
 router = APIRouter(prefix="/api/anpr", tags=["ANPR AI Model"])
+
+# In-memory storage for remote phone camera snapshots
+latest_remote_frame = {
+    "image_bytes": None,
+    "preview_base64": None,
+    "timestamp": None,
+    "device_info": "Unknown Phone",
+    "frame_id": 0,
+    "consumed": True,
+}
+
+def get_lan_ip():
+    """Retrieve LAN IP of this machine so phones on the same Wi-Fi can connect."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't need to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 # Regex for Indian License Plates (e.g., MH14DX5842, DL2CAY3188, KA01AB1234)
 INDIAN_PLATE_PATTERN = re.compile(
@@ -281,6 +306,204 @@ def log_anpr_entry_exit(
         message=f"ANPR Auto-Registration: Vehicle {clean_plate} logged as {data.action.upper()}.",
         visitor_pass=new_pass,
     )
+
+
+@router.get("/network-info")
+def get_network_info():
+    """Returns the local IP address and phone camera connection link with QR code."""
+    lan_ip = get_lan_ip()
+    phone_url = f"http://{lan_ip}:5173/phone-camera"
+    qr_data_uri = generate_qr_code_file(phone_url)
+    return {
+        "lan_ip": lan_ip,
+        "phone_camera_url": phone_url,
+        "qr_data_uri": qr_data_uri,
+    }
+
+
+@router.post("/remote-frame")
+async def upload_remote_phone_frame(
+    file: Optional[UploadFile] = File(None),
+    image_base64: Optional[str] = Form(None),
+    device_info: Optional[str] = Form("Mobile Device"),
+):
+    """
+    Receives camera frame transmitted wirelessly from phone browser.
+    Stores frame in memory so laptop dashboard can immediately detect and process it.
+    """
+    global latest_remote_frame
+    raw_bytes = None
+    if file:
+        raw_bytes = await file.read()
+    elif image_base64:
+        clean_b64 = image_base64.split(",")[1] if "," in image_base64 else image_base64
+        try:
+            raw_bytes = base64.b64decode(clean_b64)
+        except Exception:
+            pass
+
+    if not raw_bytes:
+        raise HTTPException(status_code=400, detail="No valid image payload received from phone.")
+
+    b64_preview = f"data:image/jpeg;base64,{base64.b64encode(raw_bytes).decode('utf-8')}"
+    latest_remote_frame["image_bytes"] = raw_bytes
+    latest_remote_frame["preview_base64"] = b64_preview
+    latest_remote_frame["timestamp"] = datetime.utcnow().isoformat()
+    latest_remote_frame["device_info"] = device_info or "Mobile Phone Camera"
+    latest_remote_frame["frame_id"] += 1
+    latest_remote_frame["consumed"] = False
+
+    return {
+        "success": True,
+        "frame_id": latest_remote_frame["frame_id"],
+        "timestamp": latest_remote_frame["timestamp"],
+        "message": "Snapshot transmitted to laptop dashboard successfully!",
+    }
+
+
+@router.get("/remote-frame")
+def get_latest_remote_frame_status():
+    """Polling endpoint for laptop dashboard to check if phone has sent a new frame."""
+    return {
+        "has_frame": latest_remote_frame["image_bytes"] is not None,
+        "frame_id": latest_remote_frame["frame_id"],
+        "timestamp": latest_remote_frame["timestamp"],
+        "device_info": latest_remote_frame["device_info"],
+        "consumed": latest_remote_frame["consumed"],
+        "preview_base64": latest_remote_frame["preview_base64"],
+    }
+
+
+@router.post("/process-remote-frame", response_model=ANPRDetectResponse)
+def process_latest_remote_frame(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin")),
+):
+    """Processes the latest frame received from the phone camera through the ANPR model."""
+    global latest_remote_frame
+    if not latest_remote_frame["image_bytes"]:
+        raise HTTPException(status_code=400, detail="No frame has been captured from phone camera yet.")
+
+    latest_remote_frame["consumed"] = True
+
+    inference_result = run_anpr_inference(image_bytes=latest_remote_frame["image_bytes"])
+    detected_plate = inference_result["plate"]
+    clean_detected = normalize_plate_string(detected_plate)
+
+    matching_pass = None
+    all_passes = db.query(VisitorPass).all()
+    for p in all_passes:
+        if p.vehicle_number and normalize_plate_string(p.vehicle_number) == clean_detected:
+            matching_pass = p
+            if p.status in [PassStatus.not_inside, PassStatus.in_campus, PassStatus.approved]:
+                break
+
+    pass_found = matching_pass is not None
+    message = (
+        f"Phone frame processed. Plate {detected_plate} detected. Active Visitor Pass found (#{matching_pass.id if matching_pass else ''})."
+        if pass_found
+        else f"Phone frame processed. Plate {detected_plate} detected. No active pre-approved pass found."
+    )
+
+    return ANPRDetectResponse(
+        success=True,
+        detected_plate=detected_plate,
+        confidence=inference_result["confidence"],
+        processing_time_ms=inference_result["processing_time_ms"],
+        model_name=inference_result["model_name"],
+        message=message,
+        plate_image_data=inference_result.get("preview_base64") or latest_remote_frame["preview_base64"],
+        pass_found=pass_found,
+        visitor_pass=matching_pass,
+    )
+
+
+@router.post("/fetch-url-frame", response_model=ANPRDetectResponse)
+def fetch_ip_stream_frame(
+    stream_url: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin")),
+):
+    """
+    Fetches image frame directly from an IP Webcam app or RTSP/HTTP snapshot stream
+    running on the phone (e.g. http://192.168.1.5:8080/shot.jpg).
+    """
+    if not stream_url.startswith("http://") and not stream_url.startswith("https://"):
+        stream_url = "http://" + stream_url
+
+    try:
+        req = urllib.request.Request(
+            stream_url,
+            headers={"User-Agent": "VVAS-ANPR-Terminal/2.0"}
+        )
+        with urllib.request.urlopen(req, timeout=6) as response:
+            image_bytes = response.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch snapshot from Phone IP camera ({e}). Ensure phone is on same Wi-Fi.")
+
+    inference_result = run_anpr_inference(image_bytes=image_bytes)
+    detected_plate = inference_result["plate"]
+    clean_detected = normalize_plate_string(detected_plate)
+
+    matching_pass = None
+    all_passes = db.query(VisitorPass).all()
+    for p in all_passes:
+        if p.vehicle_number and normalize_plate_string(p.vehicle_number) == clean_detected:
+            matching_pass = p
+            if p.status in [PassStatus.not_inside, PassStatus.in_campus, PassStatus.approved]:
+                break
+
+    pass_found = matching_pass is not None
+
+    return ANPRDetectResponse(
+        success=True,
+        detected_plate=detected_plate,
+        confidence=inference_result["confidence"],
+        processing_time_ms=inference_result["processing_time_ms"],
+        model_name=inference_result["model_name"],
+        message=f"Phone IP stream frame processed: {detected_plate} detected.",
+        plate_image_data=inference_result.get("preview_base64"),
+        pass_found=pass_found,
+        visitor_pass=matching_pass,
+    )
+
+
+@router.get("/activity-records")
+def get_anpr_activity_records(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin")),
+):
+    """
+    Returns recent vehicle access logs with full detail columns including
+    Pass ID, Vehicle Plate, Visitor Name, Purpose of Visit, Host Resident, Flat Number.
+    """
+    logs = (
+        db.query(AccessLog)
+        .order_by(AccessLog.timestamp.desc())
+        .limit(20)
+        .all()
+    )
+
+    records = []
+    for log in logs:
+        vp = log.visitor_pass
+        res = vp.resident if vp else None
+        guard = log.guard
+        records.append({
+            "log_id": log.id,
+            "pass_id": vp.id if vp else None,
+            "action": log.action,
+            "timestamp": log.timestamp.isoformat(),
+            "vehicle_number": vp.vehicle_number if vp else "—",
+            "visitor_name": vp.visitor_name if vp else "—",
+            "purpose": vp.purpose if vp else "—",
+            "resident_name": res.full_name if res else "—",
+            "flat_number": res.flat_number if res else "Gate",
+            "guard_name": guard.full_name if guard else "Guard",
+            "status": vp.status if vp else "exited",
+        })
+
+    return records
 
 
 @router.get("/sample-vehicles")

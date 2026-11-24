@@ -114,6 +114,9 @@ export default function AdminDashboard() {
       { label: "Gate Action", accessor: (r) => r.action.toUpperCase() },
       { label: "Visitor Name", accessor: (r) => r.visitor_pass?.visitor_name || "N/A" },
       { label: "Vehicle Number", accessor: (r) => r.visitor_pass?.vehicle_number || "N/A" },
+      { label: "Purpose of Visit", accessor: (r) => r.visitor_pass?.purpose || "N/A" },
+      { label: "Host Resident", accessor: (r) => r.visitor_pass?.resident?.full_name || "N/A" },
+      { label: "Flat Number", accessor: (r) => r.visitor_pass?.resident?.flat_number || "N/A" },
       { label: "Logged By Guard", accessor: (r) => r.guard?.full_name || "N/A" },
       { label: "Timestamp", accessor: (r) => formatDateTime(r.timestamp) },
     ]);
@@ -824,6 +827,8 @@ export default function AdminDashboard() {
                             <th>Action</th>
                             <th>Visitor Name</th>
                             <th>Vehicle Number</th>
+                            <th>Purpose of Visit</th>
+                            <th>Host Resident / Flat</th>
                             <th>Scanned By Guard</th>
                             <th>Time Recorded</th>
                           </tr>
@@ -836,6 +841,8 @@ export default function AdminDashboard() {
                               <td><span className={`badge badge-${log.action}`}>{log.action.toUpperCase()}</span></td>
                               <td><strong>{log.visitor_pass?.visitor_name || "—"}</strong></td>
                               <td><code>{log.visitor_pass?.vehicle_number || "—"}</code></td>
+                              <td>{log.visitor_pass?.purpose || "—"}</td>
+                              <td>{log.visitor_pass?.resident?.full_name || "—"} ({log.visitor_pass?.resident?.flat_number || "Gate"})</td>
                               <td>{log.guard?.full_name || "—"}</td>
                               <td>{formatDateTime(log.timestamp)}</td>
                             </tr>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import API from "../api";
 import { formatDateTime, formatPassId } from "../utils/datetime";
+import { exportToCSV } from "../utils/exportCsv";
 import {
   CarIcon,
   CarPlateIcon,
@@ -15,6 +16,9 @@ import {
   PrinterIcon,
   RefreshIcon,
   QrTicketIcon,
+  SearchIcon,
+  ExportIcon,
+  FilterIcon,
 } from "./Icons";
 import "./ANPRSegment.css";
 
@@ -25,151 +29,291 @@ export default function ANPRScannerSegment({
   defaultAction = "entry",
 }) {
   const [gateAction, setGateAction] = useState(defaultAction); // "entry" or "exit"
-  const [inputMode, setInputMode] = useState("camera"); // "camera", "upload", "simulator"
+  // Camera input modes: "phone_qr", "local_cam", "ip_stream", "upload", "simulator"
+  const [inputMode, setInputMode] = useState("phone_qr");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [detectedResult, setDetectedResult] = useState(null);
-  const [sampleVehicles, setSampleVehicles] = useState([]);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [recentDetections, setRecentDetections] = useState([]);
 
-  // Walk-in form fields when plate has no pre-approved pass
+  // Network info for phone camera connection
+  const [networkInfo, setNetworkInfo] = useState({
+    lan_ip: window.location.hostname,
+    phone_camera_url: `http://${window.location.hostname}:5173/phone-camera`,
+    qr_data_uri: null,
+  });
+
+  // Local camera devices (webcam, Continuity camera, external USB/DroidCam)
+  const [availableDevices, setAvailableDevices] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [cameraActive, setCameraActive] = useState(false);
+
+  // Phone IP webcam stream state
+  const [streamUrl, setStreamUrl] = useState("http://192.168.1.15:8080/shot.jpg");
+  const [autoFetchIp, setAutoFetchIp] = useState(false);
+
+  // Sample vehicles
+  const [sampleVehicles, setSampleVehicles] = useState([]);
+
+  // Full detailed ANPR activity records table
+  const [activityRecords, setActivityRecords] = useState([]);
+  const [recordsSearchQuery, setRecordsSearchQuery] = useState("");
+  const [recordsActionFilter, setRecordsActionFilter] = useState("all");
+
+  // Walk-in form fields
   const [walkinVisitor, setWalkinVisitor] = useState("");
   const [walkinFlat, setWalkinFlat] = useState("");
   const [walkinPurpose, setWalkinPurpose] = useState("");
   const [loggingAccess, setLoggingAccess] = useState(false);
 
+  // Phone remote frame status
+  const [remoteFrameStatus, setRemoteFrameStatus] = useState(null);
+  const [lastRemoteFrameId, setLastRemoteFrameId] = useState(0);
+
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
+  const pollTimerRef = useRef(null);
+  const ipFetchTimerRef = useRef(null);
 
-  // Load sample test vehicles on mount
+  // Initialize
   useEffect(() => {
+    fetchNetworkInfo();
     fetchSampleVehicles();
+    fetchActivityRecords();
+    enumerateLocalCameras();
+
     return () => {
-      stopCamera();
+      stopLocalCamera();
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      if (ipFetchTimerRef.current) clearInterval(ipFetchTimerRef.current);
     };
   }, []);
+
+  // Poll for phone camera frames when in phone_qr mode
+  useEffect(() => {
+    if (inputMode === "phone_qr") {
+      pollTimerRef.current = setInterval(checkRemoteFrame, 1600);
+    } else {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    }
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, [inputMode, lastRemoteFrameId]);
+
+  // Handle auto-fetch for IP stream
+  useEffect(() => {
+    if (inputMode === "ip_stream" && autoFetchIp) {
+      ipFetchTimerRef.current = setInterval(() => {
+        handleFetchIpStream(true);
+      }, 3500);
+    } else {
+      if (ipFetchTimerRef.current) clearInterval(ipFetchTimerRef.current);
+    }
+    return () => {
+      if (ipFetchTimerRef.current) clearInterval(ipFetchTimerRef.current);
+    };
+  }, [inputMode, autoFetchIp, streamUrl]);
+
+  const fetchNetworkInfo = async () => {
+    try {
+      const res = await API.get("/api/anpr/network-info");
+      setNetworkInfo(res.data);
+    } catch (e) {
+      console.warn("Could not fetch server network info:", e);
+    }
+  };
 
   const fetchSampleVehicles = async () => {
     try {
       const res = await API.get("/api/anpr/sample-vehicles");
       setSampleVehicles(res.data);
     } catch (e) {
-      console.warn("Could not load sample vehicles:", e);
+      console.warn("Could not fetch sample vehicles:", e);
     }
   };
 
-  // Start live webcam for camera frame capture
-  const startCamera = async () => {
+  const fetchActivityRecords = async () => {
+    try {
+      const res = await API.get("/api/anpr/activity-records");
+      setActivityRecords(res.data);
+    } catch (e) {
+      console.warn("Could not fetch ANPR activity records:", e);
+    }
+  };
+
+  // Enumerate cameras (handles Built-in, iPhone Continuity Camera, USB Cams)
+  const enumerateLocalCameras = async () => {
+    try {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((d) => d.kind === "videoinput");
+      setAvailableDevices(videoDevices);
+      if (videoDevices.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(videoDevices[0].deviceId);
+      }
+    } catch (e) {
+      console.warn("Could not enumerate camera devices:", e);
+    }
+  };
+
+  // Check if phone has pushed a new frame
+  const checkRemoteFrame = async () => {
+    try {
+      const res = await API.get("/api/anpr/remote-frame");
+      setRemoteFrameStatus(res.data);
+
+      if (res.data.has_frame && !res.data.consumed && res.data.frame_id !== lastRemoteFrameId) {
+        setLastRemoteFrameId(res.data.frame_id);
+        // Automatically run ANPR inference on the incoming phone snapshot!
+        await processIncomingRemoteFrame();
+      }
+    } catch (e) {
+      // ignore transient polling errors
+    }
+  };
+
+  const processIncomingRemoteFrame = async () => {
+    setLoading(true);
     setError("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+      const res = await API.post("/api/anpr/process-remote-frame");
+      handleModelInferenceSuccess(res.data, "Wireless Phone Camera");
+      setToast?.({
+        message: `Phone snapshot received! Plate ${res.data.detected_plate} detected.`,
+        type: "success",
       });
+    } catch (err) {
+      setError(err.response?.data?.detail || "Failed to process phone frame");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Start local camera
+  const startLocalCamera = async (deviceId) => {
+    stopLocalCamera();
+    setError("");
+    const targetId = deviceId || selectedDeviceId;
+
+    try {
+      const constraints = {
+        video: targetId ? { deviceId: { exact: targetId } } : { facingMode: "environment" },
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
       setCameraActive(true);
+      enumerateLocalCameras(); // Refresh labels
     } catch (err) {
-      setError("Camera access unavailable or blocked. You can upload vehicle photos or use the ANPR Simulator below.");
+      setError("Camera device access failed: " + err.message);
       setCameraActive(false);
     }
   };
 
-  const stopCamera = () => {
+  const stopLocalCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     setCameraActive(false);
   };
 
-  // Capture frame from webcam and send to ANPR model
-  const handleCaptureFrame = async () => {
+  const handleCaptureLocalFrame = async () => {
     if (!videoRef.current) return;
     const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.width = videoRef.current.videoWidth || 1280;
+    canvas.height = videoRef.current.videoHeight || 720;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
-    await sendToANPRModel({ image_base64: dataUrl });
+    await sendToANPRModel({ image_base64: dataUrl }, "Local / Continuity Camera");
   };
 
-  // Handle uploaded vehicle image file
+  // Fetch from phone IP stream
+  const handleFetchIpStream = async (silent = false) => {
+    if (!streamUrl.trim()) return;
+    if (!silent) setLoading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("stream_url", streamUrl.trim());
+
+      const res = await API.post("/api/anpr/fetch-url-frame", formData);
+      handleModelInferenceSuccess(res.data, "Phone IP Stream (" + streamUrl + ")");
+      if (!silent) {
+        setToast?.({
+          message: `IP Camera snapshot processed: ${res.data.detected_plate}`,
+          type: "success",
+        });
+      }
+    } catch (err) {
+      if (!silent) {
+        const msg = err.response?.data?.detail || "Failed to fetch stream from phone IP";
+        setError(msg);
+        setToast?.({ message: msg, type: "error" });
+      }
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
+  // Handle uploaded vehicle image
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    await sendToANPRModel({ file });
+    await sendToANPRModel({ file }, "Uploaded Image File");
   };
 
-  // Trigger model with sample / simulated vehicle plate
+  // Run model with simulated plate
   const handleSimulatePlate = async (plateNumber) => {
-    await sendToANPRModel({ mock_plate: plateNumber });
+    await sendToANPRModel({ mock_plate: plateNumber }, "Simulated Gate Queue");
   };
 
-  // Core API call: Sends data to the model endpoint
-  const sendToANPRModel = async ({ file, image_base64, mock_plate }) => {
+  // Core API call
+  const sendToANPRModel = async ({ file, image_base64, mock_plate }, sourceLabel) => {
     setError("");
     setLoading(true);
     setDetectedResult(null);
 
     try {
       const formData = new FormData();
-      if (file) {
-        formData.append("file", file);
-      }
-      if (image_base64) {
-        formData.append("image_base64", image_base64);
-      }
-      if (mock_plate) {
-        formData.append("mock_plate", mock_plate);
-      }
+      if (file) formData.append("file", file);
+      if (image_base64) formData.append("image_base64", image_base64);
+      if (mock_plate) formData.append("mock_plate", mock_plate);
 
-      const res = await API.post("/api/anpr/detect-plate", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const data = res.data;
-      setDetectedResult(data);
-
-      // Pre-fill walk-in visitor name if found
-      if (data.visitor_pass) {
-        setWalkinVisitor(data.visitor_pass.visitor_name || "");
-        setWalkinFlat(data.visitor_pass.resident?.flat_number || "");
-        setWalkinPurpose(data.visitor_pass.purpose || "");
-      } else {
-        setWalkinVisitor("");
-        setWalkinFlat("");
-        setWalkinPurpose("ANPR Automated Gate Entry");
-      }
-
-      // Add to session detections list
-      setRecentDetections((prev) => [
-        {
-          plate: data.detected_plate,
-          time: new Date().toLocaleTimeString(),
-          pass_found: data.pass_found,
-          pass_id: data.visitor_pass?.id,
-          visitor: data.visitor_pass?.visitor_name || "Walk-In",
-        },
-        ...prev.slice(0, 4),
-      ]);
-
+      const res = await API.post("/api/anpr/detect-plate", formData);
+      handleModelInferenceSuccess(res.data, sourceLabel);
       setToast?.({
-        message: `ANPR Model recognized plate: ${data.detected_plate}`,
+        message: `Plate ${res.data.detected_plate} detected by AI Model`,
         type: "success",
       });
     } catch (err) {
-      const msg = err.response?.data?.detail || "ANPR model failed to process frame";
+      const msg = err.response?.data?.detail || "ANPR model error";
       setError(msg);
       setToast?.({ message: msg, type: "error" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleModelInferenceSuccess = (data, sourceLabel) => {
+    setDetectedResult({ ...data, source: sourceLabel });
+
+    if (data.visitor_pass) {
+      setWalkinVisitor(data.visitor_pass.visitor_name || "");
+      setWalkinFlat(data.visitor_pass.resident?.flat_number || "");
+      setWalkinPurpose(data.visitor_pass.purpose || "");
+    } else {
+      setWalkinVisitor("");
+      setWalkinFlat("");
+      setWalkinPurpose("ANPR Automated Gate Entry");
     }
   };
 
@@ -196,7 +340,6 @@ export default function ANPRScannerSegment({
         type: "success",
       });
 
-      // Update pass in result card so guard sees the new state
       if (res.data.visitor_pass) {
         setDetectedResult((prev) => ({
           ...prev,
@@ -205,7 +348,8 @@ export default function ANPRScannerSegment({
         }));
       }
 
-      // Notify parent dashboard to refresh Today's Passes and Today's Logs tables
+      // Refresh activity records and parent dashboard
+      fetchActivityRecords();
       onLogComplete?.();
     } catch (err) {
       const msg = err.response?.data?.detail || "Failed to log vehicle access";
@@ -216,9 +360,39 @@ export default function ANPRScannerSegment({
     }
   };
 
+  // Filtered Activity Records
+  const filteredRecords = activityRecords.filter((rec) => {
+    if (recordsActionFilter !== "all" && rec.action !== recordsActionFilter) return false;
+    if (!recordsSearchQuery.trim()) return true;
+    const q = recordsSearchQuery.toLowerCase().trim();
+    return (
+      (rec.vehicle_number && rec.vehicle_number.toLowerCase().includes(q)) ||
+      (rec.visitor_name && rec.visitor_name.toLowerCase().includes(q)) ||
+      (rec.purpose && rec.purpose.toLowerCase().includes(q)) ||
+      (rec.resident_name && rec.resident_name.toLowerCase().includes(q)) ||
+      (rec.flat_number && rec.flat_number.toLowerCase().includes(q)) ||
+      (rec.pass_id && String(rec.pass_id).includes(q))
+    );
+  });
+
+  const handleExportRecords = () => {
+    exportToCSV("anpr_activity_records.csv", filteredRecords, [
+      { label: "Pass ID", accessor: (r) => r.pass_id ? formatPassId(r.pass_id) : "Walk-in" },
+      { label: "Vehicle Number", accessor: (r) => r.vehicle_number || "N/A" },
+      { label: "Visitor Name", accessor: (r) => r.visitor_name || "N/A" },
+      { label: "Purpose of Visit", accessor: (r) => r.purpose || "N/A" },
+      { label: "Host Resident", accessor: (r) => r.resident_name || "N/A" },
+      { label: "Flat Number", accessor: (r) => r.flat_number || "N/A" },
+      { label: "Gate Action", accessor: (r) => r.action.toUpperCase() },
+      { label: "Logged By Guard", accessor: (r) => r.guard_name || "N/A" },
+      { label: "Date & Time", accessor: (r) => formatDateTime(r.timestamp) },
+    ]);
+    setToast?.({ message: "Exported ANPR activity logs to CSV", type: "success" });
+  };
+
   return (
     <div className="anpr-container">
-      {/* Segment Header Card */}
+      {/* ─── Header Card ─── */}
       <div className="anpr-header-card">
         <div>
           <h3 style={{ margin: "0 0 4px 0", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -226,13 +400,13 @@ export default function ANPRScannerSegment({
             Automated Number Plate Recognition (ANPR) Terminal
           </h3>
           <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-            Vehicle license plates are recognized directly by the AI model from camera snapshots and sensor feeds without manual typing.
+            Capture vehicle license plates wirelessly from your phone, laptop camera, or IP stream without typing.
           </p>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
           <span className="anpr-model-pill">
-            <CpuIcon size={14} /> Model: Fast-ALPR (YOLOv9 + Transformer OCR)
+            <CpuIcon size={14} /> AI Model: Fast-ALPR (YOLOv9 + Transformer OCR)
           </span>
 
           {/* Gate Action Toggle */}
@@ -257,44 +431,160 @@ export default function ANPRScannerSegment({
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      {/* Main 2-Column Work Area */}
+      {/* ─── Main 2-Column Work Area ─── */}
       <div className="anpr-grid">
-        {/* Left Column: Data Feeds into Model */}
+        {/* Left Column: Camera Feed Options */}
         <div className="panel" style={{ margin: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h4 style={{ margin: 0, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "6px" }}>
-              <CameraIcon size={16} /> Model Ingestion Feeds
-            </h4>
+          <div style={{ marginBottom: "14px" }}>
+            <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-muted)", marginBottom: "8px" }}>
+              SELECT CAMERA FEED INPUT METHOD:
+            </div>
 
-            {/* Input Mode Selector */}
-            <div style={{ display: "flex", gap: "4px" }}>
+            {/* Camera Options Tab Bar */}
+            <div className="anpr-input-tabs">
               <button
                 type="button"
-                className={`btn btn-sm ${inputMode === "camera" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => { setInputMode("camera"); startCamera(); }}
+                className={`anpr-input-tab-btn ${inputMode === "phone_qr" ? "active" : ""}`}
+                onClick={() => { setInputMode("phone_qr"); stopLocalCamera(); }}
               >
-                Live Camera
+                📱 Wireless Phone Camera
               </button>
               <button
                 type="button"
-                className={`btn btn-sm ${inputMode === "upload" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => { setInputMode("upload"); stopCamera(); }}
+                className={`anpr-input-tab-btn ${inputMode === "local_cam" ? "active" : ""}`}
+                onClick={() => { setInputMode("local_cam"); startLocalCamera(); }}
               >
-                Upload Photo
+                🎥 Webcam / Continuity
               </button>
               <button
                 type="button"
-                className={`btn btn-sm ${inputMode === "simulator" ? "btn-primary" : "btn-outline"}`}
-                onClick={() => { setInputMode("simulator"); stopCamera(); }}
+                className={`anpr-input-tab-btn ${inputMode === "ip_stream" ? "active" : ""}`}
+                onClick={() => { setInputMode("ip_stream"); stopLocalCamera(); }}
               >
-                Simulator
+                🌐 Phone IP Stream
+              </button>
+              <button
+                type="button"
+                className={`anpr-input-tab-btn ${inputMode === "upload" ? "active" : ""}`}
+                onClick={() => { setInputMode("upload"); stopLocalCamera(); }}
+              >
+                🖼️ Upload Photo
+              </button>
+              <button
+                type="button"
+                className={`anpr-input-tab-btn ${inputMode === "simulator" ? "active" : ""}`}
+                onClick={() => { setInputMode("simulator"); stopLocalCamera(); }}
+              >
+                ⚡ Simulator
               </button>
             </div>
           </div>
 
-          {/* Mode 1: Live Gate Camera Stream */}
-          {inputMode === "camera" && (
+          {/* ── Option 1: Wireless Phone Camera (QR Connect) ── */}
+          {inputMode === "phone_qr" && (
             <div>
+              <div className="anpr-phone-connect-card">
+                {networkInfo.qr_data_uri ? (
+                  <img
+                    src={networkInfo.qr_data_uri}
+                    alt="Scan to open Phone Camera"
+                    className="anpr-qr-code-img"
+                  />
+                ) : (
+                  <div className="anpr-qr-code-img" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span className="spinner"></span>
+                  </div>
+                )}
+
+                <div style={{ flex: 1, minWidth: "200px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                    <span className="anpr-pulse-indicator"></span>
+                    <strong style={{ fontSize: "0.92rem", color: "var(--text)" }}>
+                      Live Phone Camera Receiver Active
+                    </strong>
+                  </div>
+
+                  <div className="anpr-phone-step">
+                    <span className="anpr-step-num">1</span>
+                    <span>Scan this QR code with your phone camera (on same Wi-Fi).</span>
+                  </div>
+                  <div className="anpr-phone-step">
+                    <span className="anpr-step-num">2</span>
+                    <span>Point phone at vehicle plate and tap <strong>"Snap & Send"</strong>.</span>
+                  </div>
+                  <div className="anpr-phone-step">
+                    <span className="anpr-step-num">3</span>
+                    <span>The laptop dashboard automatically catches the snapshot and extracts the plate!</span>
+                  </div>
+
+                  <div style={{ marginTop: "10px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                    Direct Mobile URL:{" "}
+                    <a
+                      href={networkInfo.phone_camera_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "var(--primary)", fontWeight: 600, wordBreak: "break-all" }}
+                    >
+                      {networkInfo.phone_camera_url}
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status and Manual Pull Button */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "14px", flexWrap: "wrap", gap: "8px" }}>
+                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                  {remoteFrameStatus?.has_frame
+                    ? `Latest phone snapshot: #${remoteFrameStatus.frame_id} (${remoteFrameStatus.device_info})`
+                    : "Awaiting snapshot from mobile phone..."}
+                </span>
+
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={loading}
+                  onClick={processIncomingRemoteFrame}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <RefreshIcon size={14} /> Process Latest Phone Snapshot
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Option 2: Webcam / Continuity Camera / USB ── */}
+          {inputMode === "local_cam" && (
+            <div>
+              {availableDevices.length > 0 && (
+                <div style={{ marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                    Camera Device:
+                  </label>
+                  <select
+                    value={selectedDeviceId}
+                    onChange={(e) => {
+                      setSelectedDeviceId(e.target.value);
+                      startLocalCamera(e.target.value);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "6px 10px",
+                      fontSize: "0.85rem",
+                      borderRadius: "6px",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-input)",
+                      color: "var(--text)",
+                    }}
+                  >
+                    {availableDevices.map((d, idx) => (
+                      <option key={d.deviceId || idx} value={d.deviceId}>
+                        {d.label || `Camera ${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div style={{ position: "relative", background: "#0f172a", borderRadius: "var(--radius)", overflow: "hidden", minHeight: "220px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <video
                   ref={videoRef}
@@ -306,9 +596,9 @@ export default function ANPRScannerSegment({
                 {!cameraActive && (
                   <div style={{ textAlign: "center", padding: "30px 20px", color: "var(--text-muted)" }}>
                     <CameraIcon size={36} style={{ marginBottom: "8px", opacity: 0.6 }} />
-                    <p style={{ margin: "0 0 12px 0", fontSize: "0.85rem" }}>Gate CCTV camera is currently standby.</p>
-                    <button type="button" className="btn btn-primary btn-sm" onClick={startCamera}>
-                      Activate Gate Camera Feed
+                    <p style={{ margin: "0 0 12px 0", fontSize: "0.85rem" }}>Camera device is standby.</p>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => startLocalCamera()}>
+                      Activate Camera Feed
                     </button>
                   </div>
                 )}
@@ -316,7 +606,7 @@ export default function ANPRScannerSegment({
                 {cameraActive && (
                   <div style={{ position: "absolute", top: "10px", left: "10px", background: "rgba(0,0,0,0.65)", color: "#22c55e", padding: "3px 8px", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
                     <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#22c55e", display: "inline-block", animation: "badgeGlowPulse 1.5s infinite" }}></span>
-                    LIVE GATE FEED
+                    LIVE CAMERA FEED
                   </div>
                 )}
               </div>
@@ -327,13 +617,13 @@ export default function ANPRScannerSegment({
                     type="button"
                     className="btn btn-primary"
                     disabled={loading}
-                    onClick={handleCaptureFrame}
+                    onClick={handleCaptureLocalFrame}
                     style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
                   >
                     <CpuIcon size={16} />
-                    {loading ? "Processing with Model..." : "Capture Frame & Detect Plate with Model"}
+                    {loading ? "Processing..." : "Capture Frame & Detect Plate with Model"}
                   </button>
-                  <button type="button" className="btn btn-outline" onClick={stopCamera}>
+                  <button type="button" className="btn btn-outline" onClick={stopLocalCamera}>
                     <StopIcon size={16} /> Stop
                   </button>
                 </div>
@@ -341,7 +631,56 @@ export default function ANPRScannerSegment({
             </div>
           )}
 
-          {/* Mode 2: Vehicle Image Upload */}
+          {/* ── Option 3: Phone IP Camera Stream (IP Webcam / RTSP / Snapshot URL) ── */}
+          {inputMode === "ip_stream" && (
+            <div>
+              <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: "12px" }}>
+                Use apps like <strong>IP Webcam</strong> (Android) or <strong>Live-Reporter</strong> (iOS). Enter the phone's local stream snapshot URL below:
+              </p>
+
+              <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                <input
+                  type="text"
+                  value={streamUrl}
+                  onChange={(e) => setStreamUrl(e.target.value)}
+                  placeholder="e.g. http://192.168.1.15:8080/shot.jpg"
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    fontSize: "0.85rem",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-input)",
+                    color: "var(--text)",
+                    fontFamily: "monospace",
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={loading || !streamUrl.trim()}
+                  onClick={() => handleFetchIpStream(false)}
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <CpuIcon size={14} /> Fetch & Detect
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: "var(--bg-input)", borderRadius: "6px", fontSize: "0.82rem" }}>
+                <input
+                  type="checkbox"
+                  id="auto-fetch-ip"
+                  checked={autoFetchIp}
+                  onChange={(e) => setAutoFetchIp(e.target.checked)}
+                />
+                <label htmlFor="auto-fetch-ip" style={{ cursor: "pointer", color: "var(--text)" }}>
+                  Auto-poll frame every 3.5 seconds from phone stream
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* ── Option 4: Upload Photo ── */}
           {inputMode === "upload" && (
             <div style={{ textAlign: "center", padding: "24px 16px", border: "2px dashed var(--border)", borderRadius: "var(--radius)", background: "var(--bg-input)" }}>
               <CarIcon size={36} style={{ color: "var(--primary)", marginBottom: "8px" }} />
@@ -367,7 +706,7 @@ export default function ANPRScannerSegment({
             </div>
           )}
 
-          {/* Mode 3: Gate Simulator / Sample Vehicles */}
+          {/* ── Option 5: Simulator ── */}
           {inputMode === "simulator" && (
             <div>
               <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "12px" }}>
@@ -411,28 +750,6 @@ export default function ANPRScannerSegment({
               </div>
             </div>
           )}
-
-          {/* Recent Shift Detections */}
-          {recentDetections.length > 0 && (
-            <div style={{ marginTop: "20px", paddingTop: "14px", borderTop: "1px solid var(--border)" }}>
-              <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-muted)", marginBottom: "8px" }}>
-                RECENT MODEL DETECTIONS (THIS SHIFT):
-              </div>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                {recentDetections.map((d, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className="anpr-sample-btn"
-                    onClick={() => handleSimulatePlate(d.plate)}
-                    title={`Detected at ${d.time}`}
-                  >
-                    {d.plate} ({d.pass_found ? "Pass #" + d.pass_id : "Walk-in"})
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Right Column: Model Detection & Verification Results */}
@@ -457,7 +774,7 @@ export default function ANPRScannerSegment({
               <CarPlateIcon size={40} style={{ opacity: 0.4, marginBottom: "12px" }} />
               <h5 style={{ margin: "0 0 6px 0", color: "var(--text)" }}>Awaiting Vehicle Feed</h5>
               <p style={{ margin: 0, fontSize: "0.85rem" }}>
-                Capture a camera frame or upload an image on the left. The recognized vehicle number plate and visitor pass will be presented here automatically.
+                Snap a photo from your phone, capture webcam, or select a sample on the left. The recognized license plate and matching visitor pass details will appear here.
               </p>
             </div>
           )}
@@ -480,6 +797,9 @@ export default function ANPRScannerSegment({
 
                 <div className="anpr-metrics-row" style={{ justifyContent: "center" }}>
                   <span>
+                    Source: <strong>{detectedResult.source || "Camera Feed"}</strong>
+                  </span>
+                  <span>
                     Model: <strong>{detectedResult.model_name}</strong>
                   </span>
                   <span>
@@ -499,32 +819,32 @@ export default function ANPRScannerSegment({
                     VALID VISITOR PASS FOUND ({formatPassId(detectedResult.visitor_pass.id)})
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "0.85rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "0.85rem" }}>
                     <div>
-                      <span style={{ color: "var(--text-muted)" }}>Visitor:</span>{" "}
-                      <strong>{detectedResult.visitor_pass.visitor_name}</strong>
+                      <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.78rem" }}>Pass Reference</span>
+                      <span className="pass-id-tag">{formatPassId(detectedResult.visitor_pass.id)}</span>
                     </div>
                     <div>
-                      <span style={{ color: "var(--text-muted)" }}>Vehicle:</span>{" "}
+                      <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.78rem" }}>Vehicle Number</span>
                       <code>{detectedResult.visitor_pass.vehicle_number}</code>
                     </div>
                     <div>
-                      <span style={{ color: "var(--text-muted)" }}>Host Resident:</span>{" "}
+                      <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.78rem" }}>Visitor Name</span>
+                      <strong>{detectedResult.visitor_pass.visitor_name}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.78rem" }}>Purpose of Visit</span>
+                      <strong style={{ color: "var(--primary)" }}>{detectedResult.visitor_pass.purpose || "General Visit"}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.78rem" }}>Host Resident & Flat</span>
                       <strong>{detectedResult.visitor_pass.resident?.full_name || "—"}</strong> ({detectedResult.visitor_pass.resident?.flat_number || "Gate"})
                     </div>
                     <div>
-                      <span style={{ color: "var(--text-muted)" }}>Purpose:</span>{" "}
-                      {detectedResult.visitor_pass.purpose || "Visit"}
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--text-muted)" }}>Current Status:</span>{" "}
+                      <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.78rem" }}>Current Status</span>
                       <span className="badge badge-in_campus" style={{ fontSize: "0.75rem" }}>
                         {detectedResult.visitor_pass.status?.toUpperCase()}
                       </span>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--text-muted)" }}>Valid Until:</span>{" "}
-                      {formatDateTime(detectedResult.visitor_pass.expires_at)}
                     </div>
                   </div>
 
@@ -546,7 +866,7 @@ export default function ANPRScannerSegment({
                       onClick={() => setPrintPass?.(detectedResult.visitor_pass)}
                       title="View & Print Gate Pass Badge / PDF"
                     >
-                      <PrinterIcon size={16} /> Pass
+                      <PrinterIcon size={16} /> Print Pass
                     </button>
                   </div>
                 </div>
@@ -586,12 +906,13 @@ export default function ANPRScannerSegment({
                   </div>
 
                   <div style={{ marginBottom: "12px" }}>
-                    <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Visit Purpose</label>
+                    <label style={{ fontSize: "0.78rem", fontWeight: 600 }}>Purpose of Visit *</label>
                     <input
                       type="text"
                       value={walkinPurpose}
                       onChange={(e) => setWalkinPurpose(e.target.value)}
-                      placeholder="e.g. Delivery, Guest, Service"
+                      placeholder="e.g. Delivery, Guest Visit, Maintenance, Cab"
+                      required
                       style={{ width: "100%", padding: "8px 10px", fontSize: "0.85rem", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text)" }}
                     />
                   </div>
@@ -623,6 +944,130 @@ export default function ANPRScannerSegment({
             </div>
           )}
         </div>
+      </div>
+
+      {/* ─── Detailed ANPR Vehicle Access Records Table with All Columns ─── */}
+      <div className="panel" style={{ marginTop: "10px" }}>
+        <div className="panel-header">
+          <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <CarPlateIcon size={20} /> ANPR Vehicle Access Records & Activity Log
+          </h3>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={handleExportRecords}
+              style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+            >
+              <ExportIcon size={14} /> Export CSV
+            </button>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={fetchActivityRecords}
+              style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+            >
+              <RefreshIcon size={14} /> Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* Search & Action Filter Bar */}
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "14px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+            <div className="search-filter-box" style={{ flex: 1, minWidth: "240px", marginBottom: 0 }}>
+              <SearchIcon className="search-icon" size={16} />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search by vehicle plate, visitor name, purpose of visit, host resident..."
+                value={recordsSearchQuery}
+                onChange={(e) => setRecordsSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <label style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                <FilterIcon size={16} /> Action:
+              </label>
+              <select
+                value={recordsActionFilter}
+                onChange={(e) => setRecordsActionFilter(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  fontSize: "0.85rem",
+                  borderRadius: "var(--radius)",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg-input)",
+                  color: "var(--text)",
+                  fontWeight: 500,
+                }}
+              >
+                <option value="all">All Gate Actions</option>
+                <option value="entry">Entry Only</option>
+                <option value="exit">Exit Only</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Table with all columns including Purpose of Visit */}
+        {filteredRecords.length === 0 ? (
+          <p className="empty-state">No vehicle access activity recorded yet.</p>
+        ) : (
+          <div className="data-table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Pass ID</th>
+                  <th>Vehicle Plate</th>
+                  <th>Visitor Name</th>
+                  <th>Purpose of Visit</th>
+                  <th>Host Resident / Flat</th>
+                  <th>Gate Action</th>
+                  <th>Logged By Guard</th>
+                  <th>Time Recorded</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecords.map((r, i) => (
+                  <tr key={r.log_id || i}>
+                    <td>
+                      {r.pass_id ? (
+                        <span className="pass-id-tag">{formatPassId(r.pass_id)}</span>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>Walk-In</span>
+                      )}
+                    </td>
+                    <td>
+                      <code style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--primary)" }}>
+                        {r.vehicle_number}
+                      </code>
+                    </td>
+                    <td><strong>{r.visitor_name}</strong></td>
+                    <td>
+                      <span style={{ fontWeight: 600, color: "var(--text)" }}>{r.purpose || "—"}</span>
+                    </td>
+                    <td>
+                      {r.resident_name} ({r.flat_number || "Gate"})
+                    </td>
+                    <td>
+                      <span className={`badge badge-${r.action}`}>
+                        {r.action.toUpperCase()}
+                      </span>
+                    </td>
+                    <td>{r.guard_name}</td>
+                    <td>{formatDateTime(r.timestamp)}</td>
+                    <td>
+                      <span className={`badge badge-${r.status}`}>
+                        {r.status?.toUpperCase()}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
