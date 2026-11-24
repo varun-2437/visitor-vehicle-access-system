@@ -8,6 +8,7 @@ import { formatDateTime, formatTimeOnly, formatPassId } from "../utils/datetime"
 import { exportToCSV } from "../utils/exportCsv";
 import PrintablePassModal from "../components/PrintablePassModal";
 import CampusVehicleStats from "../components/CampusVehicleStats";
+import ANPRScannerSegment from "../components/ANPRScannerSegment";
 import {
   KeyboardIcon,
   SearchIcon,
@@ -28,6 +29,8 @@ import {
   CalendarIcon,
   ClockIcon,
   PrinterIcon,
+  CarPlateIcon,
+  CpuIcon,
 } from "../components/Icons";
 
 export default function GuardDashboard() {
@@ -534,6 +537,13 @@ export default function GuardDashboard() {
             <CameraIcon size={16} /> Gate Scanner & Manual Entry
           </button>
           <button
+            className={`tab ${activeTab === "anpr" ? "active" : ""}`}
+            onClick={() => setActiveTab("anpr")}
+            style={{ display: "flex", alignItems: "center", gap: "6px" }}
+          >
+            <CarPlateIcon size={16} /> ANPR Plate Recognition (AI Model)
+          </button>
+          <button
             className={`tab ${activeTab === "passes" ? "active" : ""}`}
             onClick={() => setActiveTab("passes")}
             style={{ display: "flex", alignItems: "center", gap: "6px" }}
@@ -635,6 +645,25 @@ export default function GuardDashboard() {
               {lastSource === 'qr' && renderResultCard()}
             </div>
 
+            {/* Quick Switch Banner to ANPR Model Segment */}
+            <div style={{ margin: "16px 0", padding: "12px 18px", background: "rgba(168, 27, 52, 0.05)", border: "1px dashed var(--border)", borderRadius: "var(--radius)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <CarPlateIcon size={22} style={{ color: "var(--primary)" }} />
+                <div>
+                  <span style={{ fontSize: "0.875rem", fontWeight: 700, display: "block" }}>Prefer Automated Number Plate Recognition (ANPR)?</span>
+                  <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Let the AI Vision Model detect and fetch vehicle license plates directly from camera feeds.</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setActiveTab("anpr")}
+                style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.8rem" }}
+              >
+                <CpuIcon size={14} /> Open ANPR Model Segment
+              </button>
+            </div>
+
             {/* Manual Vehicle Entry Panel */}
             <div className="panel">
               <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><VehicleEntryIcon size={20} /> Manual Vehicle Entry / Register</h3>
@@ -716,6 +745,16 @@ export default function GuardDashboard() {
               {lastSource === 'manual' && renderResultCard()}
             </div>
           </>
+        )}
+
+        {/* Tab: Automated Number Plate Recognition (ANPR / AI Model) */}
+        {activeTab === "anpr" && (
+          <ANPRScannerSegment
+            onLogComplete={fetchTodayData}
+            setToast={setToast}
+            setPrintPass={setPrintPass}
+            defaultAction={action}
+          />
         )}
 
         {/* Tab 2: Today's Approved Visitor Passes */}

@@ -106,3 +106,26 @@ class ManualVehicleEntryCreate(BaseModel):
     flat_number: Optional[str] = None
     action: str = "entry"
 
+
+# ─── ANPR Model Schemas ───
+class ANPRDetectResponse(BaseModel):
+    success: bool
+    detected_plate: str
+    confidence: float
+    processing_time_ms: float
+    model_name: str
+    message: str
+    plate_image_data: Optional[str] = None
+    pass_found: bool = False
+    visitor_pass: Optional[VisitorPassResponse] = None
+
+
+class ANPRLogRequest(BaseModel):
+    vehicle_number: str
+    action: str = "entry"  # "entry" or "exit"
+    visitor_name: Optional[str] = None
+    purpose: Optional[str] = "ANPR Automated Gate Entry"
+    flat_number: Optional[str] = None
+    pass_id: Optional[int] = None
+
+

@@ -269,3 +269,28 @@ export const CarIcon = ({ size = 20, className = "", style = {} }) => (
     <circle cx="17" cy="17" r="2" />
   </svg>
 );
+
+export const CarPlateIcon = ({ size = 20, className = "", style = {} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ ...defaultStyle, ...style }} className={className}>
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <circle cx="5" cy="12" r="1" fill="currentColor" />
+    <line x1="8" y1="12" x2="16" y2="12" strokeWidth="2.5" />
+    <circle cx="19" cy="12" r="1" fill="currentColor" />
+  </svg>
+);
+
+export const CpuIcon = ({ size = 20, className = "", style = {} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ ...defaultStyle, ...style }} className={className}>
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <rect x="9" y="9" width="6" height="6" />
+    <line x1="9" y1="1" x2="9" y2="4" />
+    <line x1="15" y1="1" x2="15" y2="4" />
+    <line x1="9" y1="20" x2="9" y2="23" />
+    <line x1="15" y1="20" x2="15" y2="23" />
+    <line x1="20" y1="9" x2="23" y2="9" />
+    <line x1="20" y1="14" x2="23" y2="14" />
+    <line x1="1" y1="9" x2="4" y2="9" />
+    <line x1="1" y1="14" x2="4" y2="14" />
+  </svg>
+);
+
