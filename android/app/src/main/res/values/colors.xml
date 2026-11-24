@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- VVAS Crimson Maroon Primary Brand -->
+    <color name="primary_crimson">#A81B34</color>
+    <color name="primary_crimson_dark">#881328</color>
+    <color name="primary_crimson_light">#E11D48</color>
+    <color name="primary_crimson_subtle">#FEE2E2</color>
+
+    <!-- Semantic Status Colors -->
+    <color name="status_in_campus">#16A34A</color>
+    <color name="status_in_campus_bg">#DCFCE7</color>
+    <color name="status_not_inside">#D97706</color>
+    <color name="status_not_inside_bg">#FEF3C7</color>
+    <color name="status_exited">#475569</color>
+    <color name="status_exited_bg">#F1F5F9</color>
+    <color name="status_expired">#DC2626</color>
+    <color name="status_expired_bg">#FEE2E2</color>
+
+    <!-- UI Background & Card Colors -->
+    <color name="bg_screen">#F8FAFC</color>
+    <color name="bg_card">#FFFFFF</color>
+    <color name="bg_input">#F1F5F9</color>
+    <color name="bg_dark">#0F172A</color>
+    <color name="bg_card_dark">#1E293B</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#475569</color>
+    <color name="text_muted">#94A3B8</color>
+    <color name="text_on_crimson">#FFFFFF</color>
+
+    <!-- Borders & Dividers -->
+    <color name="border_light">#E2E8F0</color>
+    <color name="border_card">#CBD5E1</color>
+    <color name="divider">#E2E8F0</color>
+
+    <!-- Indian License Plate Graphic Colors -->
+    <color name="plate_bg">#FFFFFF</color>
+    <color name="plate_text">#0F172A</color>
+    <color name="plate_blue_strip">#003399</color>
+    <color name="plate_gold">#FFCC00</color>
+
+    <!-- Standard Basics -->
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+</resources>

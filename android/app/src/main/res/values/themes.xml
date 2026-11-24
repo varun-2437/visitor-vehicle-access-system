@@ -1,0 +1,29 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme matching Web Dashboard -->
+    <style name="Theme.VVAS" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color (Crimson Maroon) -->
+        <item name="colorPrimary">@color/primary_crimson</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/primary_crimson_subtle</item>
+        <item name="colorOnPrimaryContainer">@color/primary_crimson_dark</item>
+
+        <!-- Secondary & Surface Colors -->
+        <item name="colorSecondary">@color/primary_crimson_light</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="android:colorBackground">@color/bg_screen</item>
+        <item name="colorSurface">@color/bg_card</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">@color/primary_crimson_dark</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <style name="Theme.VVAS.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <style name="Theme.VVAS.AppBarOverlay" parent="ThemeOverlay.Material3.Dark" />
+    <style name="Theme.VVAS.PopupOverlay" parent="ThemeOverlay.Material3.Light" />
+</resources>

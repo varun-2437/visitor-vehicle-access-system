@@ -101,5 +101,18 @@ temp/
 Screenshot*.png
 *.png.tmp
 
+# Android Build & Local Configuration
+android/.gradle/
+android/build/
+android/*/build/
+android/*.iml
+android/*/*.iml
+android/local.properties
+android/.idea/
+android/.cxx/
+android/*.apk
+!android/vvas-app-debug.apk
+android/*.aab
+
 
 

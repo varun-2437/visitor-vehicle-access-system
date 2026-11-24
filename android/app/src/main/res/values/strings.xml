@@ -1,0 +1,42 @@
+<resources>
+    <string name="app_name">VVAS</string>
+    <string name="app_full_name">Visitor Vehicle Access System</string>
+    <string name="tagline">Smart Campus Gate Access &amp; Pass Management</string>
+
+    <!-- Auth -->
+    <string name="login_title">Sign In</string>
+    <string name="username_hint">Username</string>
+    <string name="password_hint">Password</string>
+    <string name="server_url_hint">API Server IP (e.g. 10.191.102.166:8000)</string>
+    <string name="sign_in_btn">Sign In to Campus Portal</string>
+    <string name="logout_btn">Logout</string>
+
+    <!-- Resident Screen -->
+    <string name="resident_portal">Resident Portal</string>
+    <string name="pre_register_pass">Pre-Register Visitor Pass</string>
+    <string name="my_passes">My Visitor Passes</string>
+    <string name="visitor_name">Visitor Name</string>
+    <string name="vehicle_number">Vehicle Plate Number</string>
+    <string name="purpose_of_visit">Purpose of Visit</string>
+    <string name="snap_plate_photo">📸 Snap / Upload Plate for ANPR</string>
+    <string name="generate_pass_btn">Create &amp; Pre-Register Pass</string>
+
+    <!-- Guard Screen -->
+    <string name="guard_terminal">Gate Guard Terminal</string>
+    <string name="guard_notice">Security Guard View: Real-time pass status monitor. Entry logging is restricted to official gate desktop.</string>
+    <string name="approved_passes_today">Approved Passes for Today</string>
+    <string name="verify_pass">Verify Visitor Pass</string>
+
+    <!-- Admin Screen -->
+    <string name="admin_dashboard">Admin Oversight</string>
+    <string name="campus_stats">Today\'s Campus Vehicle Stats</string>
+    <string name="inside_campus">Vehicles Inside</string>
+    <string name="total_visits">Total Visits</string>
+    <string name="passes_created">Passes Generated</string>
+    <string name="access_logs">System Access Logs</string>
+
+    <!-- Common -->
+    <string name="loading">Loading...</string>
+    <string name="refresh">Refresh</string>
+    <string name="close">Close</string>
+</resources>

@@ -178,11 +178,20 @@ export default function ANPRScannerSegment({
     setError("");
     try {
       const res = await API.post("/api/anpr/process-remote-frame");
-      handleModelInferenceSuccess(res.data, "Wireless Phone Camera");
-      setToast?.({
-        message: `Phone snapshot received! Plate ${res.data.detected_plate} detected.`,
-        type: "success",
-      });
+      if (!res.data.success || !res.data.detected_plate) {
+        setError(res.data.message || "No vehicle license plate recognized in this phone snapshot. Please take a closer photo with good lighting.");
+        setToast?.({
+          message: res.data.message || "No plate detected in phone snapshot.",
+          type: "warning",
+        });
+        setDetectedResult(null);
+      } else {
+        handleModelInferenceSuccess(res.data, "Wireless Phone Camera");
+        setToast?.({
+          message: `Phone snapshot received! Plate ${res.data.detected_plate} detected.`,
+          type: "success",
+        });
+      }
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to process phone frame");
     } finally {
@@ -246,12 +255,19 @@ export default function ANPRScannerSegment({
       formData.append("stream_url", streamUrl.trim());
 
       const res = await API.post("/api/anpr/fetch-url-frame", formData);
-      handleModelInferenceSuccess(res.data, "Phone IP Stream (" + streamUrl + ")");
-      if (!silent) {
-        setToast?.({
-          message: `IP Camera snapshot processed: ${res.data.detected_plate}`,
-          type: "success",
-        });
+      if (!res.data.success || !res.data.detected_plate) {
+        if (!silent) {
+          setError(res.data.message || "No vehicle license plate recognized in IP stream frame.");
+          setToast?.({ message: res.data.message || "No plate detected in IP stream.", type: "warning" });
+        }
+      } else {
+        handleModelInferenceSuccess(res.data, "Phone IP Stream (" + streamUrl + ")");
+        if (!silent) {
+          setToast?.({
+            message: `IP Camera snapshot processed: ${res.data.detected_plate}`,
+            type: "success",
+          });
+        }
       }
     } catch (err) {
       if (!silent) {
@@ -289,11 +305,19 @@ export default function ANPRScannerSegment({
       if (mock_plate) formData.append("mock_plate", mock_plate);
 
       const res = await API.post("/api/anpr/detect-plate", formData);
-      handleModelInferenceSuccess(res.data, sourceLabel);
-      setToast?.({
-        message: `Plate ${res.data.detected_plate} detected by AI Model`,
-        type: "success",
-      });
+      if (!res.data.success || !res.data.detected_plate) {
+        setError(res.data.message || "No vehicle license plate detected. Please provide a clear, well-lit snapshot.");
+        setToast?.({
+          message: res.data.message || "No plate detected in image.",
+          type: "warning",
+        });
+      } else {
+        handleModelInferenceSuccess(res.data, sourceLabel);
+        setToast?.({
+          message: `Plate ${res.data.detected_plate} detected by AI Model`,
+          type: "success",
+        });
+      }
     } catch (err) {
       const msg = err.response?.data?.detail || "ANPR model error";
       setError(msg);

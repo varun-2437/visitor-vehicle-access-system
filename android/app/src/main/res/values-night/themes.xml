@@ -1,0 +1,23 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Dark application theme matching Web Dashboard Dark Mode -->
+    <style name="Theme.VVAS" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary_crimson_light</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryContainer">@color/primary_crimson_dark</item>
+        <item name="colorOnPrimaryContainer">@color/primary_crimson_subtle</item>
+
+        <item name="colorSecondary">@color/primary_crimson</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="android:colorBackground">@color/bg_dark</item>
+        <item name="colorSurface">@color/bg_card_dark</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+
+        <item name="android:statusBarColor">#090D16</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <style name="Theme.VVAS.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+</resources>

@@ -1,0 +1,101 @@
+package com.vvas.access.ui.resident
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.vvas.access.data.api.ApiClient
+import com.vvas.access.data.model.VisitorPass
+import com.vvas.access.data.storage.SessionManager
+import com.vvas.access.databinding.FragmentResidentDashboardBinding
+import kotlinx.coroutines.launch
+
+class ResidentDashboardFragment : Fragment() {
+
+    private var _binding: FragmentResidentDashboardBinding? = null
+    private val binding get() = _binding!!
+
+    private lateinit var sessionManager: SessionManager
+    private lateinit var adapter: PassesAdapter
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentResidentDashboardBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        sessionManager = SessionManager(requireContext())
+
+        setupHeader()
+        setupRecyclerView()
+        setupListeners()
+        loadPasses()
+    }
+
+    private fun setupHeader() {
+        val user = sessionManager.currentUser
+        binding.tvWelcomeResident.text = "Resident: ${user?.fullName ?: "Resident"}"
+        binding.tvResidentFlat.text = "Unit / Flat: ${user?.flatNumber ?: "N/A"}"
+    }
+
+    private fun setupRecyclerView() {
+        adapter = PassesAdapter { pass ->
+            PassDetailDialog(requireContext(), pass).show()
+        }
+        binding.rvPasses.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvPasses.adapter = adapter
+    }
+
+    private fun setupListeners() {
+        binding.swipeRefresh.setOnRefreshListener { loadPasses() }
+
+        binding.btnPreRegisterPass.setOnClickListener {
+            val bottomSheet = CreatePassBottomSheet { newPass ->
+                loadPasses()
+                PassDetailDialog(requireContext(), newPass).show()
+            }
+            bottomSheet.show(parentFragmentManager, "CreatePassBottomSheet")
+        }
+    }
+
+    private fun loadPasses() {
+        binding.progressBar.visibility = if (binding.swipeRefresh.isRefreshing) View.GONE else View.VISIBLE
+
+        lifecycleScope.launch {
+            try {
+                val api = ApiClient.getService(requireContext())
+                val passes = api.getPasses()
+
+                adapter.submitList(passes)
+                binding.tvPassesCount.text = "${passes.size} Passes"
+
+                if (passes.isEmpty()) {
+                    binding.layoutEmptyPasses.visibility = View.VISIBLE
+                    binding.rvPasses.visibility = View.GONE
+                } else {
+                    binding.layoutEmptyPasses.visibility = View.GONE
+                    binding.rvPasses.visibility = View.VISIBLE
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Failed to load passes: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
+                binding.swipeRefresh.isRefreshing = false
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}
