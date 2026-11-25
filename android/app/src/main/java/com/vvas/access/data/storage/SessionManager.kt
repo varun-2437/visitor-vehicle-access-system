@@ -15,7 +15,7 @@ class SessionManager(context: Context) {
         private const val KEY_SERVER_URL = "key_server_url"
         private const val KEY_AUTH_TOKEN = "key_auth_token"
         private const val KEY_USER_DATA = "key_user_data"
-        const val DEFAULT_SERVER_URL = "http://10.191.102.166:8000/"
+        const val DEFAULT_SERVER_URL = "https://vvas-api-production.up.railway.app/"
     }
 
     var serverUrl: String
