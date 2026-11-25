@@ -1,9 +1,14 @@
 package com.vvas.access.ui.resident
 
 import android.app.Dialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.Color
 import android.os.Bundle
+import android.view.ViewGroup
 import android.view.Window
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.vvas.access.R
 import com.vvas.access.data.model.VisitorPass
@@ -26,14 +31,33 @@ class PassDetailDialog(
 
         window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        binding.tvDialogPassId.text = DateTimeUtils.formatPassId(pass.id)
-        binding.tvDialogVisitor.text = "Visitor: ${pass.visitorName}"
-        binding.tvDialogVehicle.text = "Vehicle: ${pass.vehicleNumber?.uppercase() ?: "Walk-in / None"}"
-        binding.tvDialogPurpose.text = "Purpose: ${pass.purpose ?: "General Visit"}"
-        binding.tvDialogExpires.text = "Valid Until: ${DateTimeUtils.formatDateTime(pass.expiresAt)}"
+        binding.tvDialogPassId.text = "PASS REF: ${DateTimeUtils.formatPassId(pass.id)}"
+        binding.tvDialogVisitor.text = pass.visitorName
 
-        // Generate QR Code bitmap from pass QR Token
+        val plate = pass.vehicleNumber?.trim()?.uppercase()
+        if (!plate.isNullOrEmpty()) {
+            binding.tvDialogVehicle.text = plate
+            binding.tvDialogVehicle.setBackgroundResource(R.drawable.bg_pass_plate_yellow)
+            binding.tvDialogVehicle.setTextColor(Color.BLACK)
+        } else {
+            binding.tvDialogVehicle.text = "Walk-in / No Vehicle"
+            binding.tvDialogVehicle.background = null
+            binding.tvDialogVehicle.setTextColor(Color.parseColor("#64748B"))
+        }
+
+        binding.tvDialogHostName.text = pass.resident?.fullName
+            ?: pass.resident?.username?.let { "@$it" }
+            ?: "Host Resident"
+        binding.tvDialogHostFlat.text = pass.resident?.flatNumber?.takeIf { it.isNotBlank() }
+            ?: "Campus Gate / Front Office"
+        binding.tvDialogPurpose.text = pass.purpose?.takeIf { it.isNotBlank() }
+            ?: "General Visitor Access"
+
+        binding.tvDialogIssued.text = DateTimeUtils.formatDateTime(pass.createdAt)
+        binding.tvDialogExpires.text = DateTimeUtils.formatDateTime(pass.expiresAt)
+
         val token = pass.qrToken.orEmpty()
+        binding.tvDialogToken.text = if (token.isNotBlank()) "TOKEN: $token" else "TOKEN: —"
         if (token.isNotBlank()) {
             val qrBitmap = QRCodeGenerator.generateQRCode(token, 600)
             if (qrBitmap != null) {
@@ -41,30 +65,45 @@ class PassDetailDialog(
             }
         }
 
-        // Status badge
         when (pass.status?.lowercase() ?: "not_inside") {
             "in_campus", "used" -> {
-                binding.tvDialogStatus.text = "● IN CAMPUS"
+                binding.tvDialogStatus.text = "ACTIVE PASS — VEHICLE INSIDE CAMPUS"
                 binding.tvDialogStatus.setBackgroundResource(R.drawable.bg_status_in_campus)
                 binding.tvDialogStatus.setTextColor(ContextCompat.getColor(context, R.color.status_in_campus))
             }
             "not_inside", "approved", "pending" -> {
-                binding.tvDialogStatus.text = "⏳ NOT INSIDE"
+                binding.tvDialogStatus.text = "PRE-APPROVED (AWAITING ENTRY)"
                 binding.tvDialogStatus.setBackgroundResource(R.drawable.bg_status_not_inside)
                 binding.tvDialogStatus.setTextColor(ContextCompat.getColor(context, R.color.status_not_inside))
             }
             "exited" -> {
-                binding.tvDialogStatus.text = "✓ EXITED"
+                binding.tvDialogStatus.text = "VISIT COMPLETED (VEHICLE EXITED)"
                 binding.tvDialogStatus.setBackgroundResource(R.drawable.bg_status_exited)
                 binding.tvDialogStatus.setTextColor(ContextCompat.getColor(context, R.color.status_exited))
             }
             else -> {
-                binding.tvDialogStatus.text = "⚠️ EXPIRED"
+                binding.tvDialogStatus.text = "PASS EXPIRED (INVALID FOR ENTRY)"
                 binding.tvDialogStatus.setBackgroundResource(R.drawable.bg_status_expired)
                 binding.tvDialogStatus.setTextColor(ContextCompat.getColor(context, R.color.status_expired))
             }
         }
 
+        binding.btnCopyToken.setOnClickListener {
+            if (token.isNotBlank()) {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("VVAS Pass Token", token))
+                binding.btnCopyToken.text = "✓ Copied"
+                Toast.makeText(context, "Pass token copied", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        binding.btnTopClose.setOnClickListener { dismiss() }
         binding.btnCloseDialog.setOnClickListener { dismiss() }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val width = (context.resources.displayMetrics.widthPixels * 0.94).toInt()
+        window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 }

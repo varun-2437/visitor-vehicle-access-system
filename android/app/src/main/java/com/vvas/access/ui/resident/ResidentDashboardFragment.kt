@@ -12,6 +12,7 @@ import com.vvas.access.data.api.ApiClient
 import com.vvas.access.data.model.VisitorPass
 import com.vvas.access.data.storage.SessionManager
 import com.vvas.access.databinding.FragmentResidentDashboardBinding
+import com.vvas.access.utils.PassFilterController
 import kotlinx.coroutines.launch
 
 class ResidentDashboardFragment : Fragment() {
@@ -21,6 +22,8 @@ class ResidentDashboardFragment : Fragment() {
 
     private lateinit var sessionManager: SessionManager
     private lateinit var adapter: PassesAdapter
+    private lateinit var filterController: PassFilterController
+    private var allPasses: List<VisitorPass> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,6 +40,7 @@ class ResidentDashboardFragment : Fragment() {
 
         setupHeader()
         setupRecyclerView()
+        setupFilterBar()
         setupListeners()
         loadPasses()
     }
@@ -55,6 +59,12 @@ class ResidentDashboardFragment : Fragment() {
         binding.rvPasses.adapter = adapter
     }
 
+    private fun setupFilterBar() {
+        filterController = PassFilterController(binding.residentFilterBar) {
+            applyFilters()
+        }
+    }
+
     private fun setupListeners() {
         binding.swipeRefresh.setOnRefreshListener { loadPasses() }
 
@@ -67,6 +77,22 @@ class ResidentDashboardFragment : Fragment() {
         }
     }
 
+    private fun applyFilters() {
+        if (_binding == null) return
+
+        val filtered = filterController.filterPasses(allPasses)
+        adapter.submitList(filtered)
+        binding.tvPassesCount.text = "${filtered.size} Passes"
+
+        if (filtered.isEmpty()) {
+            binding.layoutEmptyPasses.visibility = View.VISIBLE
+            binding.rvPasses.visibility = View.GONE
+        } else {
+            binding.layoutEmptyPasses.visibility = View.GONE
+            binding.rvPasses.visibility = View.VISIBLE
+        }
+    }
+
     private fun loadPasses() {
         binding.progressBar.visibility = if (binding.swipeRefresh.isRefreshing) View.GONE else View.VISIBLE
 
@@ -76,16 +102,8 @@ class ResidentDashboardFragment : Fragment() {
                 val passes = api.getMyPasses()
                 if (_binding == null) return@launch
 
-                adapter.submitList(passes)
-                binding.tvPassesCount.text = "${passes.size} Passes"
-
-                if (passes.isEmpty()) {
-                    binding.layoutEmptyPasses.visibility = View.VISIBLE
-                    binding.rvPasses.visibility = View.GONE
-                } else {
-                    binding.layoutEmptyPasses.visibility = View.GONE
-                    binding.rvPasses.visibility = View.VISIBLE
-                }
+                allPasses = passes
+                applyFilters()
             } catch (e: Exception) {
                 context?.let {
                     Toast.makeText(it, "Failed to load passes: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()

@@ -1,6 +1,5 @@
 package com.vvas.access.ui.admin
 
-import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -13,9 +12,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.vvas.access.R
 import com.vvas.access.data.api.ApiClient
+import com.vvas.access.data.model.AccessLog
+import com.vvas.access.data.model.VisitorPass
 import com.vvas.access.databinding.FragmentAdminDashboardBinding
 import com.vvas.access.ui.resident.PassDetailDialog
 import com.vvas.access.ui.resident.PassesAdapter
+import com.vvas.access.utils.PassFilterController
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -27,6 +29,10 @@ class AdminDashboardFragment : Fragment() {
 
     private lateinit var passesAdapter: PassesAdapter
     private lateinit var logsAdapter: AccessLogsAdapter
+    private lateinit var filterController: PassFilterController
+
+    private var allPasses: List<VisitorPass> = emptyList()
+    private var allLogs: List<AccessLog> = emptyList()
     private var showingLogsTab = false
 
     override fun onCreateView(
@@ -42,6 +48,7 @@ class AdminDashboardFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupRecyclerViews()
+        setupFilterBar()
         setupTabs()
         binding.adminSwipeRefresh.setOnRefreshListener { loadDashboardData() }
         loadDashboardData()
@@ -59,34 +66,56 @@ class AdminDashboardFragment : Fragment() {
         binding.rvAdminLogs.adapter = logsAdapter
     }
 
+    private fun setupFilterBar() {
+        filterController = PassFilterController(binding.adminFilterBar) {
+            applyFilters()
+        }
+    }
+
     private fun setupTabs() {
-        val crimson = ContextCompat.getColor(requireContext(), R.color.primary_crimson)
         val textSecondary = ContextCompat.getColor(requireContext(), R.color.text_secondary)
-        val white = ContextCompat.getColor(requireContext(), R.color.white)
 
         fun updateTabs(showLogs: Boolean) {
             showingLogsTab = showLogs
+            filterController.setLogsMode(showLogs)
             if (showLogs) {
-                binding.btnTabLogs.backgroundTintList = ColorStateList.valueOf(crimson)
-                binding.btnTabLogs.setTextColor(white)
-                binding.btnTabPasses.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+                binding.btnTabLogs.setBackgroundResource(R.drawable.bg_tab_active)
+                binding.btnTabLogs.setTextColor(Color.WHITE)
+                binding.btnTabPasses.setBackgroundColor(Color.TRANSPARENT)
                 binding.btnTabPasses.setTextColor(textSecondary)
 
                 binding.rvAdminLogs.visibility = View.VISIBLE
                 binding.rvAdminPasses.visibility = View.GONE
             } else {
-                binding.btnTabPasses.backgroundTintList = ColorStateList.valueOf(crimson)
-                binding.btnTabPasses.setTextColor(white)
-                binding.btnTabLogs.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+                binding.btnTabPasses.setBackgroundResource(R.drawable.bg_tab_active)
+                binding.btnTabPasses.setTextColor(Color.WHITE)
+                binding.btnTabLogs.setBackgroundColor(Color.TRANSPARENT)
                 binding.btnTabLogs.setTextColor(textSecondary)
 
                 binding.rvAdminPasses.visibility = View.VISIBLE
                 binding.rvAdminLogs.visibility = View.GONE
             }
+            applyFilters()
         }
 
         binding.btnTabPasses.setOnClickListener { updateTabs(false) }
         binding.btnTabLogs.setOnClickListener { updateTabs(true) }
+    }
+
+    private fun applyFilters() {
+        if (_binding == null) return
+
+        val filteredPasses = filterController.filterPasses(allPasses)
+        val filteredLogs = filterController.filterLogs(allLogs)
+
+        passesAdapter.submitList(filteredPasses)
+        logsAdapter.submitList(filteredLogs)
+
+        binding.btnTabPasses.text = "Passes (${filteredPasses.size})"
+        binding.btnTabLogs.text = "Access Logs (${filteredLogs.size})"
+
+        val isEmpty = if (showingLogsTab) filteredLogs.isEmpty() else filteredPasses.isEmpty()
+        binding.tvAdminEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
     }
 
     private fun loadDashboardData() {
@@ -100,7 +129,7 @@ class AdminDashboardFragment : Fragment() {
                 supervisorScope {
                     val statsResult = async { runCatching { api.getStats() } }
                     val passesResult = async {
-                        runCatching { api.getTodayPasses(fromDate = "2020-01-01T00:00:00") }
+                        runCatching { api.getTodayPasses(allTime = true) }
                     }
                     val logsResult = async { runCatching { api.getAdminLogs() } }
 
@@ -117,7 +146,7 @@ class AdminDashboardFragment : Fragment() {
                     }
 
                     passesResult.await().onSuccess { passes ->
-                        passesAdapter.submitList(passes)
+                        allPasses = passes
                     }.onFailure { err ->
                         context?.let {
                             Toast.makeText(it, "Passes error: ${err.localizedMessage}", Toast.LENGTH_SHORT).show()
@@ -125,13 +154,14 @@ class AdminDashboardFragment : Fragment() {
                     }
 
                     logsResult.await().onSuccess { logs ->
-                        logsAdapter.submitList(logs)
+                        allLogs = logs
                     }.onFailure { err ->
                         context?.let {
                             Toast.makeText(it, "Logs error: ${err.localizedMessage}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
+                applyFilters()
             } catch (e: Exception) {
                 context?.let {
                     Toast.makeText(

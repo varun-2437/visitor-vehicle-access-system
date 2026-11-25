@@ -166,11 +166,18 @@ export default function GuardDashboard() {
     setToast({ message: "Exported today's activity logs to CSV", type: "success" });
   };
 
-  const fetchTodayData = async () => {
+  const fetchTodayData = async (
+    customFrom = fromDate,
+    customTo = toDate,
+    customPreset = datePreset
+  ) => {
     try {
       const params = {};
-      if (fromDate) params.from_date = new Date(fromDate).toISOString();
-      if (toDate) params.to_date = new Date(toDate).toISOString();
+      if (customFrom) params.from_date = new Date(customFrom).toISOString();
+      if (customTo) params.to_date = new Date(customTo).toISOString();
+      if (!customFrom && !customTo && customPreset === "all") {
+        params.all_time = true;
+      }
 
       const [passesRes, logsRes] = await Promise.all([
         API.get("/api/qr/today-passes", { params }),
@@ -379,30 +386,34 @@ export default function GuardDashboard() {
   const applyDatePreset = (preset) => {
     setDatePreset(preset);
     const now = new Date();
-    if (preset === "all") {
-      setFromDate("");
-      setToDate("");
-    } else if (preset === "today") {
+    let nextFrom = "";
+    let nextTo = "";
+
+    if (preset === "today") {
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
       const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-      setFromDate(start.toISOString().slice(0, 16));
-      setToDate(end.toISOString().slice(0, 16));
+      nextFrom = start.toISOString().slice(0, 16);
+      nextTo = end.toISOString().slice(0, 16);
     } else if (preset === "yesterday") {
       const y = new Date();
       y.setDate(y.getDate() - 1);
       const start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0);
       const end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59);
-      setFromDate(start.toISOString().slice(0, 16));
-      setToDate(end.toISOString().slice(0, 16));
+      nextFrom = start.toISOString().slice(0, 16);
+      nextTo = end.toISOString().slice(0, 16);
     } else if (preset === "last7") {
       const start = new Date();
       start.setDate(start.getDate() - 7);
       start.setHours(0, 0, 0, 0);
       const end = new Date();
       end.setHours(23, 59, 59, 999);
-      setFromDate(start.toISOString().slice(0, 16));
-      setToDate(end.toISOString().slice(0, 16));
+      nextFrom = start.toISOString().slice(0, 16);
+      nextTo = end.toISOString().slice(0, 16);
     }
+
+    setFromDate(nextFrom);
+    setToDate(nextTo);
+    fetchTodayData(nextFrom, nextTo, preset);
   };
 
   const resetAllFilters = () => {
@@ -413,13 +424,8 @@ export default function GuardDashboard() {
     setFromDate("");
     setToDate("");
     setSortOrder("date_desc");
-    
-    // We should refetch without date filters when clearing
-    setTimeout(() => {
-        // A little hack to fetch without dates because state isn't immediately updated
-        API.get("/api/qr/today-passes").then(res => setTodayPasses(res.data));
-        API.get("/api/qr/today-logs").then(res => setTodayLogs(res.data));
-    }, 0);
+
+    fetchTodayData("", "", "all");
   };
 
   const handleSelectInsideVehicles = () => {
@@ -874,7 +880,7 @@ export default function GuardDashboard() {
                     </button>
                   )}
                   
-                  <button type="button" className="btn btn-primary btn-sm" onClick={fetchTodayData} style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => fetchTodayData()} style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "6px" }}>
                     <SearchIcon size={14} /> Apply Date Filter
                   </button>
                 </div>
@@ -1058,7 +1064,7 @@ export default function GuardDashboard() {
                     </button>
                   )}
                   
-                  <button type="button" className="btn btn-primary btn-sm" onClick={fetchTodayData} style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => fetchTodayData()} style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "6px" }}>
                     <SearchIcon size={14} /> Apply Date Filter
                   </button>
                 </div>

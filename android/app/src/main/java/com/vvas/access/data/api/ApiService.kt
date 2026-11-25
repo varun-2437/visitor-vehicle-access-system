@@ -22,7 +22,8 @@ interface ApiService {
     @GET("api/qr/today-passes")
     suspend fun getTodayPasses(
         @Query("from_date") fromDate: String? = null,
-        @Query("to_date") toDate: String? = null
+        @Query("to_date") toDate: String? = null,
+        @Query("all_time") allTime: Boolean? = null
     ): List<VisitorPass>
 
     @POST("api/qr/generate")
@@ -44,7 +45,8 @@ interface ApiService {
     @GET("api/qr/today-logs")
     suspend fun getTodayLogs(
         @Query("from_date") fromDate: String? = null,
-        @Query("to_date") toDate: String? = null
+        @Query("to_date") toDate: String? = null,
+        @Query("all_time") allTime: Boolean? = null
     ): List<AccessLog>
 
     // ── Fast-ALPR AI Plate Recognition ──

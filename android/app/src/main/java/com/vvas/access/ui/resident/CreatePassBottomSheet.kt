@@ -97,20 +97,21 @@ class CreatePassBottomSheet(
 
     private fun setupDurationButtons() {
         val activeBg = ContextCompat.getColor(requireContext(), R.color.primary_crimson)
+        val inactiveBg = ContextCompat.getColor(requireContext(), R.color.bg_input)
         val activeText = ContextCompat.getColor(requireContext(), R.color.white)
         val inactiveText = ContextCompat.getColor(requireContext(), R.color.text_secondary)
 
         fun updateButtons(active24: Boolean, active48: Boolean, active7d: Boolean) {
             binding.btnDuration24h.backgroundTintList =
-                ColorStateList.valueOf(if (active24) activeBg else Color.TRANSPARENT)
+                ColorStateList.valueOf(if (active24) activeBg else inactiveBg)
             binding.btnDuration24h.setTextColor(if (active24) activeText else inactiveText)
 
             binding.btnDuration48h.backgroundTintList =
-                ColorStateList.valueOf(if (active48) activeBg else Color.TRANSPARENT)
+                ColorStateList.valueOf(if (active48) activeBg else inactiveBg)
             binding.btnDuration48h.setTextColor(if (active48) activeText else inactiveText)
 
             binding.btnDuration7d.backgroundTintList =
-                ColorStateList.valueOf(if (active7d) activeBg else Color.TRANSPARENT)
+                ColorStateList.valueOf(if (active7d) activeBg else inactiveBg)
             binding.btnDuration7d.setTextColor(if (active7d) activeText else inactiveText)
         }
 

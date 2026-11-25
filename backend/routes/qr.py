@@ -249,17 +249,18 @@ def parse_iso(date_str: str) -> datetime:
 def get_today_passes(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    all_time: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin")),
 ):
-    """List visitor passes. Defaults to last 24 hours unless date range is provided."""
+    """List visitor passes. Defaults to last 24 hours unless date range or all_time=true is provided."""
     query = db.query(VisitorPass)
     if from_date:
         query = query.filter(VisitorPass.created_at >= parse_iso(from_date))
     if to_date:
         query = query.filter(VisitorPass.created_at <= parse_iso(to_date))
-    
-    if not from_date and not to_date:
+
+    if not from_date and not to_date and not all_time:
         since = datetime.utcnow() - timedelta(hours=24)
         query = query.filter(VisitorPass.created_at >= since)
 
@@ -272,17 +273,18 @@ from schemas import AccessLogResponse
 def get_today_logs(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    all_time: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("guard", "admin")),
 ):
-    """List vehicle entry and exit access logs. Defaults to last 24 hours unless date range is provided."""
+    """List vehicle entry and exit access logs. Defaults to last 24 hours unless date range or all_time=true is provided."""
     query = db.query(AccessLog)
     if from_date:
         query = query.filter(AccessLog.timestamp >= parse_iso(from_date))
     if to_date:
         query = query.filter(AccessLog.timestamp <= parse_iso(to_date))
-        
-    if not from_date and not to_date:
+
+    if not from_date and not to_date and not all_time:
         since = datetime.utcnow() - timedelta(hours=24)
         query = query.filter(AccessLog.timestamp >= since)
 
