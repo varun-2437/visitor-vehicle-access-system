@@ -386,12 +386,12 @@ def get_campus_vehicle_stats(
         .scalar() or 0
     )
 
-    # 2. Total vehicle entries recorded today
+    # 2. Distinct vehicles with gate activity (entry or exit) recorded today
     total_visited = (
-        db.query(func.count(AccessLog.id))
-        .join(VisitorPass, AccessLog.visitor_pass_id == VisitorPass.id)
+        db.query(func.count(func.distinct(VisitorPass.id)))
+        .join(AccessLog, AccessLog.visitor_pass_id == VisitorPass.id)
         .filter(
-            AccessLog.action == LogAction.entry,
+            AccessLog.action.in_([LogAction.entry, LogAction.exit]),
             AccessLog.timestamp >= start_time,
             AccessLog.timestamp <= end_time,
             VisitorPass.vehicle_number.isnot(None),

@@ -94,12 +94,12 @@ export default function ANPRScannerSegment({
 
   // Poll for live mobile feed & connection state continuously when active
   useEffect(() => {
-    const intervalMs = inputMode === "phone_qr" ? 1000 : 3000;
+    const intervalMs = inputMode === "phone_qr" ? 650 : 3000;
     pollTimerRef.current = setInterval(checkRemoteFrame, intervalMs);
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-  }, [inputMode, lastRemoteFrameId, autoDetectStream]);
+  }, [inputMode, lastRemoteFrameId, autoDetectStream, remoteFrameStatus?.stream_state]);
 
   // Handle auto-fetch for IP stream
   useEffect(() => {
@@ -160,7 +160,10 @@ export default function ANPRScannerSegment({
   // Check if phone app or browser has pushed a new frame or updated status
   const checkRemoteFrame = async () => {
     try {
-      const res = await API.get("/api/anpr/remote-frame");
+      const isStreaming = remoteFrameStatus?.stream_state === "streaming";
+      const res = await API.get("/api/anpr/remote-frame", {
+        params: { include_preview: !isStreaming },
+      });
       setRemoteFrameStatus(res.data);
 
       if (
@@ -168,6 +171,7 @@ export default function ANPRScannerSegment({
         autoDetectStream &&
         res.data.has_frame &&
         !res.data.consumed &&
+        res.data.detection?.detected_plate &&
         res.data.frame_id !== lastRemoteFrameId
       ) {
         setLastRemoteFrameId(res.data.frame_id);
@@ -561,11 +565,15 @@ export default function ANPRScannerSegment({
           {/* ── Option 1: Mobile App Live Feed / Wireless Phone Camera ── */}
           {inputMode === "phone_qr" && (
             <div>
-              {/* Live Feed Preview Box when frames are present */}
-              {remoteFrameStatus?.has_frame && remoteFrameStatus?.preview_base64 ? (
+              {/* Live Feed Preview Box: real-time MJPEG stream when streaming, else snapshot preview */}
+              {(remoteFrameStatus?.stream_state === "streaming" || (remoteFrameStatus?.has_frame && remoteFrameStatus?.preview_base64)) ? (
                 <div className="anpr-live-feed-box">
                   <img
-                    src={remoteFrameStatus.preview_base64}
+                    src={
+                      remoteFrameStatus?.stream_state === "streaming"
+                        ? `http://${window.location.hostname}:8000/api/anpr/mjpeg-feed`
+                        : remoteFrameStatus.preview_base64
+                    }
                     alt="Live Mobile Gate Camera Feed"
                     className="anpr-live-feed-img"
                   />

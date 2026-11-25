@@ -15,12 +15,14 @@ import com.vvas.access.data.api.ApiClient
 import com.vvas.access.data.model.LoginRequest
 import com.vvas.access.data.storage.SessionManager
 import com.vvas.access.databinding.ActivityLoginBinding
+import com.vvas.access.utils.BackendStatusMonitor
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var sessionManager: SessionManager
+    private var backendStatusMonitor: BackendStatusMonitor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,6 +48,17 @@ class LoginActivity : AppCompatActivity() {
         setupServerConfig()
         setupQuickFillButtons()
         setupLoginButton()
+        backendStatusMonitor = BackendStatusMonitor(binding.tvBackendStatus)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        backendStatusMonitor?.start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        backendStatusMonitor?.stop()
     }
 
     private fun applyWindowInsets() {

@@ -3,7 +3,7 @@ import API from "../api";
 import Navbar from "../components/Navbar";
 import Toast from "../components/Toast";
 import CampusSketchBG from "../components/CampusSketchBG";
-import { formatDateTime, formatPassId } from "../utils/datetime";
+import { formatDateTime, formatPassId, getPresetDateRange } from "../utils/datetime";
 import { exportToCSV } from "../utils/exportCsv";
 import PrintablePassModal from "../components/PrintablePassModal";
 import {
@@ -58,31 +58,9 @@ export default function ResidentDashboard() {
 
   const applyDatePreset = (preset) => {
     setDatePreset(preset);
-    const now = new Date();
-    if (preset === "all") {
-      setFromDate("");
-      setToDate("");
-    } else if (preset === "today") {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-      setFromDate(start.toISOString().slice(0, 16));
-      setToDate(end.toISOString().slice(0, 16));
-    } else if (preset === "yesterday") {
-      const y = new Date();
-      y.setDate(y.getDate() - 1);
-      const start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0);
-      const end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59);
-      setFromDate(start.toISOString().slice(0, 16));
-      setToDate(end.toISOString().slice(0, 16));
-    } else if (preset === "last7") {
-      const start = new Date();
-      start.setDate(start.getDate() - 7);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date();
-      end.setHours(23, 59, 59, 999);
-      setFromDate(start.toISOString().slice(0, 16));
-      setToDate(end.toISOString().slice(0, 16));
-    }
+    const { fromDate: nextFrom, toDate: nextTo } = getPresetDateRange(preset);
+    setFromDate(nextFrom);
+    setToDate(nextTo);
   };
 
   const resetAllFilters = () => {

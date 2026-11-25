@@ -13,15 +13,17 @@ import io
 import time
 import base64
 import socket
+import threading
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import get_db, SessionLocal
 from models import User, VisitorPass, AccessLog, PassStatus, LogAction
 from config import SECRET_KEY, ALGORITHM
 from schemas import (
@@ -68,6 +70,10 @@ latest_remote_frame = {
     "last_heartbeat": None,
     "stream_mode": "snapshot",
 }
+frame_condition = threading.Condition()
+_bg_anpr_lock = threading.Lock()
+_bg_anpr_running = False
+_bg_anpr_last_run = 0.0
 
 # ─── Load Real ANPR Models at startup ───
 alpr_model = None
@@ -108,10 +114,11 @@ def get_lan_ip():
         s.close()
     return IP
 
-# Regex for Indian License Plates (e.g., MH14DX5842, DL2CAY3188, KA01AB1234)
+# Strict Plate Validation Patterns (Indian RTO & Bharat BH Series)
+STANDARD_PLATE_EXACT = re.compile(r'^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{3,4}$')
+BH_PLATE_EXACT = re.compile(r'^\d{2}BH\d{4}[A-Z]{1,2}$')
 INDIAN_PLATE_PATTERN = re.compile(
-    r'[A-Z]{2}\s*\d{1,2}\s*[A-Z]{1,3}\s*\d{3,4}',
-    re.IGNORECASE
+    r'(?:[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{3,4}|\d{2}BH\d{4}[A-Z]{1,2})'
 )
 
 
@@ -123,12 +130,34 @@ def normalize_plate_string(raw_text: str) -> str:
     return clean
 
 
-def run_anpr_inference(image_bytes: Optional[bytes] = None, manual_hint: Optional[str] = None) -> dict:
+def extract_valid_plate(raw_text: str) -> str:
+    """
+    Strictly validates and extracts only genuine number-plate formatted strings (6-11 chars).
+    Rejects long garbage OCR strings (e.g. keyboards, paragraphs, plain words).
+    """
+    clean = normalize_plate_string(raw_text)
+    if not clean or len(clean) < 6 or len(clean) > 16:
+        return ""
+    if STANDARD_PLATE_EXACT.fullmatch(clean) or BH_PLATE_EXACT.fullmatch(clean):
+        return clean if 6 <= len(clean) <= 11 else ""
+    match = INDIAN_PLATE_PATTERN.search(clean)
+    if match:
+        candidate = match.group(0)
+        if 6 <= len(candidate) <= 11:
+            return candidate
+    return ""
+
+
+def run_anpr_inference(
+    image_bytes: Optional[bytes] = None,
+    manual_hint: Optional[str] = None,
+    allow_slow_ocr: bool = True,
+) -> dict:
     """
     Real AI Model Ingestion & Inference:
     1. Uses Fast-ALPR (YOLOv9 + CCT-S-v2 Transformer) for plate localization & OCR.
-    2. Falls back to Pytesseract / EasyOCR if YOLO plate detector misses close-ups.
-    3. Never returns fake dummy data: extracts real text or reports no plate found.
+    2. Optional Pytesseract / EasyOCR fallback on single snapshots.
+    3. Strictly validates plate format so arbitrary text/large strings are ignored.
     """
     start_time = time.time()
     detected_plate = ""
@@ -137,7 +166,7 @@ def run_anpr_inference(image_bytes: Optional[bytes] = None, manual_hint: Optiona
     preview_base64 = None
 
     if manual_hint and manual_hint.strip():
-        detected_plate = normalize_plate_string(manual_hint)
+        detected_plate = extract_valid_plate(manual_hint) or normalize_plate_string(manual_hint)[:11]
         confidence = 0.99
         model_name = "Simulator / Manual Override"
 
@@ -155,69 +184,67 @@ def run_anpr_inference(image_bytes: Optional[bytes] = None, manual_hint: Optiona
                     try:
                         results = alpr_model.predict(img)
                         if results:
-                            best = max(results, key=lambda r: r.detection.confidence)
-                            detected_plate = normalize_plate_string(best.ocr.text)
-                            confidence = float(best.detection.confidence)
-                            model_name = "Fast-ALPR (YOLOv9 + CCT-S-v2 Transformer)"
+                            for cand in sorted(results, key=lambda r: r.detection.confidence, reverse=True):
+                                valid_plate = extract_valid_plate(cand.ocr.text)
+                                if not valid_plate:
+                                    continue
+                                detected_plate = valid_plate
+                                confidence = float(cand.detection.confidence)
+                                model_name = "Fast-ALPR (YOLOv9 + CCT-S-v2 Transformer)"
 
-                            # Crop the exact plate bounding box for visual verification
-                            box = best.detection.bounding_box
-                            h_img, w_img = img.shape[:2]
-                            x1 = max(0, int(box.x1) - 6)
-                            y1 = max(0, int(box.y1) - 6)
-                            x2 = min(w_img, int(box.x2) + 6)
-                            y2 = min(h_img, int(box.y2) + 6)
-                            if x2 > x1 and y2 > y1:
-                                crop = img[y1:y2, x1:x2]
-                                _, buf = cv2.imencode('.jpg', crop)
-                                preview_base64 = f"data:image/jpeg;base64,{base64.b64encode(buf).decode('utf-8')}"
+                                box = cand.detection.bounding_box
+                                h_img, w_img = img.shape[:2]
+                                x1 = max(0, int(box.x1) - 6)
+                                y1 = max(0, int(box.y1) - 6)
+                                x2 = min(w_img, int(box.x2) + 6)
+                                y2 = min(h_img, int(box.y2) + 6)
+                                if x2 > x1 and y2 > y1:
+                                    crop = img[y1:y2, x1:x2]
+                                    _, buf = cv2.imencode('.jpg', crop)
+                                    preview_base64 = f"data:image/jpeg;base64,{base64.b64encode(buf).decode('utf-8')}"
+                                break
                     except Exception as e:
                         print(f"[Fast-ALPR Predict Warning]: {e}")
 
-                # ── Tier 2: OCR Fallback (Pytesseract) ──
-                if not detected_plate:
+                # ── Tier 2: OCR Fallback (Pytesseract - strict format only) ──
+                if not detected_plate and allow_slow_ocr:
                     try:
                         import pytesseract
                         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                         _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                         txt = pytesseract.image_to_string(thresh, config='--oem 3 --psm 7').strip()
-                        clean_ocr = normalize_plate_string(txt)
-                        match = INDIAN_PLATE_PATTERN.search(txt.replace(' ', ''))
-                        if match:
-                            detected_plate = normalize_plate_string(match.group(0))
+                        valid_tess = extract_valid_plate(txt)
+                        if valid_tess:
+                            detected_plate = valid_tess
                             confidence = 0.88
-                            model_name = "Pytesseract OCR Fallback"
-                        elif len(clean_ocr) >= 6:
-                            detected_plate = clean_ocr
-                            confidence = 0.80
                             model_name = "Pytesseract OCR Fallback"
                     except Exception:
                         pass
 
-                # ── Tier 3: OCR Fallback (EasyOCR) ──
-                if not detected_plate:
+                # ── Tier 3: OCR Fallback (EasyOCR - strict format only, rejects long strings) ──
+                if not detected_plate and allow_slow_ocr:
                     try:
                         reader = get_easyocr()
                         if reader is not None:
                             results = reader.readtext(img, detail=0)
-                            joined_txt = "".join(results)
-                            clean_e = normalize_plate_string(joined_txt)
-                            match = INDIAN_PLATE_PATTERN.search(clean_e)
-                            if match:
-                                detected_plate = match.group(0)
-                                confidence = 0.85
-                                model_name = "EasyOCR Fallback"
-                            elif len(clean_e) >= 6:
-                                detected_plate = clean_e
-                                confidence = 0.78
-                                model_name = "EasyOCR Fallback"
+                            # Check individual chunks & adjacent 2-line combinations (handles 2-line Indian plates)
+                            candidates = list(results)
+                            for i in range(len(results) - 1):
+                                candidates.append(f"{results[i]}{results[i + 1]}")
+                            for raw_cand in candidates:
+                                valid_easy = extract_valid_plate(raw_cand)
+                                if valid_easy:
+                                    detected_plate = valid_easy
+                                    confidence = 0.85
+                                    model_name = "EasyOCR Fallback"
+                                    break
                     except Exception:
                         pass
 
         except Exception as e:
             print(f"[ANPR Pipeline Processing Error]: {e}")
 
-    elapsed_ms = round((time.time() - start_time) * 1000 + 45, 2)
+    elapsed_ms = round((time.time() - start_time) * 1000, 2)
 
     return {
         "plate": detected_plate,
@@ -318,9 +345,14 @@ def log_anpr_entry_exit(
     Logs vehicle access (entry or exit) based on the number plate fetched from the model.
     Updates pass status and records access log automatically.
     """
-    clean_plate = normalize_plate_string(data.vehicle_number)
-    if not clean_plate:
-        raise HTTPException(status_code=400, detail="Invalid vehicle number")
+    raw_clean = normalize_plate_string(data.vehicle_number)
+    valid_plate = extract_valid_plate(data.vehicle_number)
+    if not raw_clean or (not valid_plate and not data.pass_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid vehicle number plate format. Please capture or enter a valid plate (e.g. MH14DX5842).",
+        )
+    clean_plate = valid_plate or raw_clean
 
     target_pass = None
 
@@ -453,19 +485,104 @@ def update_remote_stream_status(
     }
 
 
+def _serialize_pass_dict(p: Optional[VisitorPass]) -> Optional[dict]:
+    if not p:
+        return None
+    return {
+        "id": p.id,
+        "visitor_name": p.visitor_name,
+        "vehicle_number": p.vehicle_number,
+        "purpose": p.purpose,
+        "qr_token": p.qr_token,
+        "status": p.status.value if hasattr(p.status, "value") else p.status,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "expires_at": p.expires_at.isoformat() if p.expires_at else None,
+        "qr_image_path": p.qr_image_path,
+        "resident": {
+            "id": p.resident.id,
+            "username": p.resident.username,
+            "full_name": p.resident.full_name,
+            "flat_number": p.resident.flat_number,
+        } if p.resident else None,
+    }
+
+
+def _match_pass_for_plate(db: Session, detected_plate: str) -> Optional[VisitorPass]:
+    clean_detected = normalize_plate_string(detected_plate)
+    if not clean_detected:
+        return None
+    matching_pass = None
+    all_passes = db.query(VisitorPass).all()
+    for p in all_passes:
+        if p.vehicle_number and normalize_plate_string(p.vehicle_number) == clean_detected:
+            matching_pass = p
+            if p.status in [PassStatus.not_inside, PassStatus.in_campus, PassStatus.approved]:
+                break
+    return matching_pass
+
+
+def _run_background_anpr_worker(raw_bytes: bytes):
+    global _bg_anpr_running, _bg_anpr_last_run, latest_remote_frame
+    try:
+        # Fast-ALPR only (no slow CPU EasyOCR) for high-speed live stream
+        inference_result = run_anpr_inference(image_bytes=raw_bytes, allow_slow_ocr=False)
+        detected_plate = inference_result.get("plate", "")
+        if detected_plate:
+            db = SessionLocal()
+            try:
+                matching_pass = _match_pass_for_plate(db, detected_plate)
+                pass_dict = _serialize_pass_dict(matching_pass)
+            finally:
+                db.close()
+
+            pass_found = pass_dict is not None
+            latest_remote_frame["consumed"] = False
+            latest_remote_frame["detection"] = {
+                "success": True,
+                "detected_plate": detected_plate,
+                "confidence": inference_result["confidence"],
+                "processing_time_ms": inference_result["processing_time_ms"],
+                "model_name": inference_result["model_name"],
+                "plate_image_data": inference_result.get("preview_base64"),
+                "pass_found": pass_found,
+                "visitor_pass": pass_dict,
+                "visitor_name": pass_dict["visitor_name"] if pass_dict else None,
+                "flat_number": pass_dict["resident"]["flat_number"] if (pass_dict and pass_dict.get("resident")) else None,
+                "pass_id": pass_dict["id"] if pass_dict else None,
+            }
+    except Exception as e:
+        print(f"[Background ANPR Worker Error]: {e}")
+    finally:
+        with _bg_anpr_lock:
+            _bg_anpr_last_run = time.time()
+            _bg_anpr_running = False
+
+
+def _trigger_background_anpr_if_ready(raw_bytes: bytes):
+    global _bg_anpr_running
+    now = time.time()
+    with _bg_anpr_lock:
+        if _bg_anpr_running or (now - _bg_anpr_last_run) < 0.7:
+            return
+        _bg_anpr_running = True
+    threading.Thread(target=_run_background_anpr_worker, args=(raw_bytes,), daemon=True).start()
+
+
 @router.post("/remote-frame")
 async def upload_remote_phone_frame(
     file: Optional[UploadFile] = File(None),
     image_base64: Optional[str] = Form(None),
     device_info: Optional[str] = Form("Mobile Device"),
     stream_mode: Optional[str] = Form("snapshot"),
+    run_anpr: bool = Form(True),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
-    Receives camera frame transmitted wirelessly from phone app or phone browser.
-    Runs Fast-ALPR AI inference immediately, looks up active visitor passes,
-    and stores frame + detection in memory for the laptop dashboard.
+    Receives camera frames wirelessly from the Android app or phone browser.
+    - For live_stream with run_anpr=False: saves frame immediately (<5ms) for smooth ~8-12 FPS
+      MJPEG video and schedules non-blocking Fast-ALPR inference in the background.
+    - For single snapshots (run_anpr=True): runs full ANPR immediately and returns detection.
     """
     global latest_remote_frame
     if current_user and current_user.role not in ("camera", "guard", "admin"):
@@ -484,27 +601,8 @@ async def upload_remote_phone_frame(
     if not raw_bytes:
         raise HTTPException(status_code=400, detail="No valid image payload received from phone.")
 
-    b64_preview = f"data:image/jpeg;base64,{base64.b64encode(raw_bytes).decode('utf-8')}"
-
-    # Run Fast-ALPR AI Inference on the incoming phone frame
-    inference_result = run_anpr_inference(image_bytes=raw_bytes)
-    detected_plate = inference_result.get("plate", "")
-    clean_detected = normalize_plate_string(detected_plate)
-
-    matching_pass = None
-    if clean_detected:
-        all_passes = db.query(VisitorPass).all()
-        for p in all_passes:
-            if p.vehicle_number and normalize_plate_string(p.vehicle_number) == clean_detected:
-                matching_pass = p
-                if p.status in [PassStatus.not_inside, PassStatus.in_campus, PassStatus.approved]:
-                    break
-
-    pass_found = matching_pass is not None
     now_iso = datetime.utcnow().isoformat()
-
     latest_remote_frame["image_bytes"] = raw_bytes
-    latest_remote_frame["preview_base64"] = b64_preview
     latest_remote_frame["timestamp"] = now_iso
     latest_remote_frame["last_heartbeat"] = now_iso
     latest_remote_frame["stream_state"] = "streaming" if stream_mode == "live_stream" else "connected"
@@ -514,6 +612,42 @@ async def upload_remote_phone_frame(
         latest_remote_frame["sender_username"] = current_user.username
         latest_remote_frame["sender_name"] = current_user.full_name
     latest_remote_frame["frame_id"] += 1
+
+    # Wake up any active MJPEG stream listeners immediately
+    with frame_condition:
+        frame_condition.notify_all()
+
+    # ── Fast-Path for Continuous Live Video Feed (~8-12 FPS) ──
+    if stream_mode == "live_stream" and not run_anpr:
+        latest_remote_frame["preview_base64"] = None  # Avoid expensive base64 encoding every 120ms; MJPEG serves raw bytes
+        _trigger_background_anpr_if_ready(raw_bytes)
+        cached = latest_remote_frame.get("detection") or {}
+        return {
+            "success": bool(cached.get("detected_plate")),
+            "frame_id": latest_remote_frame["frame_id"],
+            "timestamp": now_iso,
+            "stream_state": latest_remote_frame["stream_state"],
+            "detected_plate": cached.get("detected_plate") or "",
+            "confidence": cached.get("confidence") or 0.0,
+            "processing_time_ms": cached.get("processing_time_ms") or 0.0,
+            "model_name": cached.get("model_name") or "Fast-ALPR Live",
+            "pass_found": bool(cached.get("pass_found")),
+            "visitor_name": cached.get("visitor_name"),
+            "flat_number": cached.get("flat_number"),
+            "pass_id": cached.get("pass_id"),
+            "message": "Live frame ingested",
+        }
+
+    # ── Synchronous Path for Explicit Snapshots ──
+    b64_preview = f"data:image/jpeg;base64,{base64.b64encode(raw_bytes).decode('utf-8')}"
+    latest_remote_frame["preview_base64"] = b64_preview
+
+    inference_result = run_anpr_inference(image_bytes=raw_bytes, allow_slow_ocr=True)
+    detected_plate = inference_result.get("plate", "")
+    matching_pass = _match_pass_for_plate(db, detected_plate)
+    pass_dict = _serialize_pass_dict(matching_pass)
+    pass_found = pass_dict is not None
+
     latest_remote_frame["consumed"] = False
     latest_remote_frame["detection"] = {
         "success": bool(detected_plate),
@@ -523,7 +657,10 @@ async def upload_remote_phone_frame(
         "model_name": inference_result["model_name"],
         "plate_image_data": inference_result.get("preview_base64") or b64_preview,
         "pass_found": pass_found,
-        "visitor_pass": matching_pass,
+        "visitor_pass": pass_dict,
+        "visitor_name": pass_dict["visitor_name"] if pass_dict else None,
+        "flat_number": pass_dict["resident"]["flat_number"] if (pass_dict and pass_dict.get("resident")) else None,
+        "pass_id": pass_dict["id"] if pass_dict else None,
     }
 
     if detected_plate:
@@ -533,7 +670,7 @@ async def upload_remote_phone_frame(
             else f"Plate {detected_plate} detected. Sent to laptop gate terminal."
         )
     else:
-        message = "Snapshot received, but no license plate was recognized. Please take a closer photo."
+        message = "No valid license plate recognized in this snapshot. Please frame the plate clearly."
 
     return {
         "success": bool(detected_plate),
@@ -554,9 +691,38 @@ async def upload_remote_phone_frame(
     }
 
 
+@router.get("/mjpeg-feed")
+def stream_remote_mjpeg():
+    """Real-time MJPEG stream endpoint for smooth zero-lag video playback on the Web ANPR page."""
+    def generate():
+        last_sent_id = -1
+        while True:
+            with frame_condition:
+                if latest_remote_frame["frame_id"] == last_sent_id:
+                    frame_condition.wait(timeout=2.0)
+                frame_bytes = latest_remote_frame.get("image_bytes")
+                curr_id = latest_remote_frame["frame_id"]
+
+            if frame_bytes and curr_id != last_sent_id:
+                last_sent_id = curr_id
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n"
+                    + f"Content-Length: {len(frame_bytes)}\r\n\r\n".encode("ascii")
+                    + frame_bytes
+                    + b"\r\n"
+                )
+
+    return StreamingResponse(
+        generate(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
 @router.get("/remote-frame")
-def get_latest_remote_frame_status():
-    """Polling endpoint for laptop dashboard to inspect live camera status, frame preview, and detection."""
+def get_latest_remote_frame_status(include_preview: bool = True):
+    """Polling endpoint for laptop dashboard to inspect live camera status and latest detection."""
     raw_state = latest_remote_frame.get("stream_state") or "disconnected"
     last_hb = latest_remote_frame.get("last_heartbeat")
     seconds_since = None
@@ -567,9 +733,9 @@ def get_latest_remote_frame_status():
             elapsed = (datetime.utcnow() - datetime.fromisoformat(last_hb)).total_seconds()
             seconds_since = round(elapsed, 1)
             if raw_state == "streaming":
-                if elapsed > 20:
+                if elapsed > 12:
                     effective_state = "disconnected"
-                elif elapsed > 7:
+                elif elapsed > 4:
                     effective_state = "reconnecting"
             elif raw_state in ("connected", "paused") and elapsed > 45:
                 effective_state = "disconnected"
@@ -578,13 +744,19 @@ def get_latest_remote_frame_status():
     elif raw_state != "disconnected":
         effective_state = "disconnected"
 
+    preview = None
+    if include_preview and latest_remote_frame.get("image_bytes"):
+        preview = latest_remote_frame.get("preview_base64")
+        if not preview:
+            preview = f"data:image/jpeg;base64,{base64.b64encode(latest_remote_frame['image_bytes']).decode('utf-8')}"
+
     return {
         "has_frame": latest_remote_frame["image_bytes"] is not None,
         "frame_id": latest_remote_frame["frame_id"],
         "timestamp": latest_remote_frame["timestamp"],
         "device_info": latest_remote_frame["device_info"],
         "consumed": latest_remote_frame["consumed"],
-        "preview_base64": latest_remote_frame["preview_base64"],
+        "preview_base64": preview,
         "detection": latest_remote_frame.get("detection"),
         "stream_state": effective_state,
         "raw_stream_state": raw_state,

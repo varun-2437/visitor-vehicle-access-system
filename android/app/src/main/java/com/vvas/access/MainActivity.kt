@@ -15,12 +15,14 @@ import com.vvas.access.ui.auth.LoginActivity
 import com.vvas.access.ui.camera.LiveCameraStreamFragment
 import com.vvas.access.ui.guard.GuardDashboardFragment
 import com.vvas.access.ui.resident.ResidentDashboardFragment
+import com.vvas.access.utils.BackendStatusMonitor
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var sessionManager: SessionManager
     private var showingCameraFeed = false
+    private var backendStatusMonitor: BackendStatusMonitor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +45,17 @@ class MainActivity : AppCompatActivity() {
         applyWindowInsets()
         setupTopBar()
         loadRoleFragment()
+        backendStatusMonitor = BackendStatusMonitor(binding.tvBackendStatus)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        backendStatusMonitor?.start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        backendStatusMonitor?.stop()
     }
 
     private fun applyWindowInsets() {

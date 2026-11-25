@@ -177,15 +177,15 @@ class LiveCameraStreamFragment : Fragment() {
             checkCameraPermission()
         }
         isStreamingActive = true
-        binding.btnToggleStream.text = "⏸ Pause Feed"
+        binding.btnToggleStream.text = "⏸ Pause"
         binding.btnToggleStream.setBackgroundColor(Color.parseColor("#D97706"))
-        setUiState(StreamState.STREAMING, "Streaming live frames to Web ANPR Terminal")
+        setUiState(StreamState.STREAMING, "Streaming live frames (~8 FPS) to Web ANPR Terminal")
         notifyServerState("streaming")
     }
 
     private fun pauseLiveStream() {
         isStreamingActive = false
-        binding.btnToggleStream.text = "▶ Resume Live Feed"
+        binding.btnToggleStream.text = "▶ Resume"
         binding.btnToggleStream.setBackgroundColor(
             ContextCompat.getColor(requireContext(), R.color.primary_crimson)
         )
@@ -195,7 +195,7 @@ class LiveCameraStreamFragment : Fragment() {
 
     private fun stopAndDisconnect() {
         isStreamingActive = false
-        binding.btnToggleStream.text = "▶ Start Live Feed"
+        binding.btnToggleStream.text = "▶ Start Live"
         binding.btnToggleStream.setBackgroundColor(
             ContextCompat.getColor(requireContext(), R.color.primary_crimson)
         )
@@ -206,7 +206,8 @@ class LiveCameraStreamFragment : Fragment() {
     private fun processCameraFrame(imageProxy: ImageProxy) {
         val isManualSnap = snapRequested.getAndSet(false)
         val now = System.currentTimeMillis()
-        val dueForStreamFrame = isStreamingActive && (now - lastFrameSentMillis >= 1500L)
+        // Stream at ~8 FPS (120ms) for smooth live video without stalling on AI
+        val dueForStreamFrame = isStreamingActive && (now - lastFrameSentMillis >= 120L)
 
         if (!isManualSnap && !dueForStreamFrame) {
             imageProxy.close()
@@ -219,17 +220,20 @@ class LiveCameraStreamFragment : Fragment() {
         }
 
         lastFrameSentMillis = now
+        val runAnprNow = isManualSnap && !isStreamingActive
+        val targetWidth = if (runAnprNow) 960 else 640
+        val jpegQuality = if (runAnprNow) 80 else 60
+
         val jpegBytes = try {
             val rawBitmap = imageProxy.toBitmap()
             val rotated = rotateBitmapIfNeeded(rawBitmap, imageProxy.imageInfo.rotationDegrees)
             if (rotated != rawBitmap) rawBitmap.recycle()
 
-            val maxWidth = 960
-            val scaled = if (rotated.width > maxWidth) {
-                val ratio = maxWidth.toFloat() / rotated.width
+            val scaled = if (rotated.width > targetWidth) {
+                val ratio = targetWidth.toFloat() / rotated.width
                 Bitmap.createScaledBitmap(
                     rotated,
-                    maxWidth,
+                    targetWidth,
                     (rotated.height * ratio).toInt().coerceAtLeast(1),
                     true
                 )
@@ -239,7 +243,7 @@ class LiveCameraStreamFragment : Fragment() {
             if (scaled != rotated) rotated.recycle()
 
             ByteArrayOutputStream().use { out ->
-                scaled.compress(Bitmap.CompressFormat.JPEG, 75, out)
+                scaled.compress(Bitmap.CompressFormat.JPEG, jpegQuality, out)
                 scaled.recycle()
                 out.toByteArray()
             }
@@ -254,8 +258,8 @@ class LiveCameraStreamFragment : Fragment() {
             return
         }
 
-        val mode = if (isManualSnap && !isStreamingActive) "snapshot" else "live_stream"
-        uploadFrameBytes(jpegBytes, mode)
+        val mode = if (runAnprNow) "snapshot" else "live_stream"
+        uploadFrameBytes(jpegBytes, mode, runAnprNow)
     }
 
     private fun rotateBitmapIfNeeded(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
@@ -264,7 +268,7 @@ class LiveCameraStreamFragment : Fragment() {
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    private fun uploadFrameBytes(jpegBytes: ByteArray, streamMode: String) {
+    private fun uploadFrameBytes(jpegBytes: ByteArray, streamMode: String, runAnprNow: Boolean) {
         val ctx = context ?: run {
             isUploadingFrame.set(false)
             return
@@ -278,9 +282,10 @@ class LiveCameraStreamFragment : Fragment() {
                 val filePart = MultipartBody.Part.createFormData("file", "live_frame.jpg", fileBody)
                 val deviceBody = deviceName.toRequestBody("text/plain".toMediaTypeOrNull())
                 val modeBody = streamMode.toRequestBody("text/plain".toMediaTypeOrNull())
+                val anprBody = runAnprNow.toString().toRequestBody("text/plain".toMediaTypeOrNull())
 
                 val res = withContext(Dispatchers.IO) {
-                    api.uploadRemoteFrame(filePart, deviceBody, modeBody)
+                    api.uploadRemoteFrame(filePart, deviceBody, modeBody, anprBody)
                 }
 
                 if (_binding == null) return@launch
@@ -288,7 +293,7 @@ class LiveCameraStreamFragment : Fragment() {
                 framesSentCount++
                 val latency = res.processingTimeMs.toInt()
                 binding.tvFrameStats.text = if (isStreamingActive) {
-                    "🔴 LIVE • Frame #$framesSentCount (${latency}ms)"
+                    "🔴 LIVE • Frame #$framesSentCount"
                 } else {
                     "📸 Snap #$framesSentCount (${latency}ms)"
                 }
@@ -306,8 +311,10 @@ class LiveCameraStreamFragment : Fragment() {
                     binding.tvDetectedPlateSub.text = if (res.passFound) {
                         "✓ Pass #VP-%05d (%s)".format(res.passId ?: 0, res.visitorName ?: "Visitor")
                     } else {
-                        "Sent to Web ANPR Terminal (No active pass)"
+                        "Valid plate sent to Web ANPR Terminal"
                     }
+                } else if (runAnprNow) {
+                    binding.layoutLivePlateOverlay.visibility = View.GONE
                 }
             } catch (e: Exception) {
                 if (_binding != null) {

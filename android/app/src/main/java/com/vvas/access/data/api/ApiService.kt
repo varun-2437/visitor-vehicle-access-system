@@ -67,7 +67,8 @@ interface ApiService {
     suspend fun uploadRemoteFrame(
         @Part file: MultipartBody.Part,
         @Part("device_info") deviceInfo: RequestBody,
-        @Part("stream_mode") streamMode: RequestBody
+        @Part("stream_mode") streamMode: RequestBody,
+        @Part("run_anpr") runAnpr: RequestBody
     ): RemoteFrameUploadResponse
 
     @FormUrlEncoded

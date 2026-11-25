@@ -74,3 +74,33 @@ export function formatPassId(id) {
   if (id === null || id === undefined) return "—";
   return `#VP-${String(id).padStart(5, "0")}`;
 }
+
+/**
+ * Formats a Date object as local "YYYY-MM-DDTHH:mm" for datetime-local inputs.
+ */
+export function toLocalDateTimeInput(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Computes { fromDate, toDate } local input strings for preset filters ("all", "today", "yesterday", "last7").
+ */
+export function getPresetDateRange(preset) {
+  if (preset === "all") return { fromDate: "", toDate: "" };
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  if (preset === "yesterday") {
+    start.setDate(start.getDate() - 1);
+    end.setDate(end.getDate() - 1);
+  } else if (preset === "last7") {
+    start.setDate(start.getDate() - 7);
+  }
+
+  return {
+    fromDate: toLocalDateTimeInput(start),
+    toDate: toLocalDateTimeInput(end),
+  };
+}

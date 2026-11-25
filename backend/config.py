@@ -10,7 +10,10 @@ except Exception:
     pass
 
 # ─── Database ───
-DATABASE_URL = f"sqlite:///{BASE_DIR / 'app.db'}"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:<YOUR_SUPABASE_DB_PASSWORD>@db.dvwrtqhwzzwdgfanimnd.supabase.co:5432/postgres",
+)
 
 # ─── JWT Settings ───
 SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-change-in-production")

@@ -107,7 +107,7 @@ export default function CampusVehicleStats({
             {loading ? "…" : stats.total_visited}
           </div>
           <div className="campus-stat-title">Total Vehicles Visited Today</div>
-          <div className="campus-stat-desc">Vehicle check-ins logged today</div>
+          <div className="campus-stat-desc">Vehicle entries &amp; exits logged today</div>
           {onSelectVisited && (
             <span className="stat-click-hint">View today's visits ➔</span>
           )}
