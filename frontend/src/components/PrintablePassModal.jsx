@@ -10,8 +10,9 @@ import {
 } from "./Icons";
 import "./PrintablePassModal.css";
 
-export default function PrintablePassModal({ pass, onClose, hostInfo }) {
+export default function PrintablePassModal({ pass, onClose, hostInfo, onMarkExit }) {
   const [copied, setCopied] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -102,6 +103,26 @@ export default function PrintablePassModal({ pass, onClose, hostInfo }) {
           </div>
 
           <div className="pass-action-btn-group">
+            {onMarkExit && (statusKey === "in_campus" || statusKey === "used") && (
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                disabled={exiting}
+                onClick={async () => {
+                  setExiting(true);
+                  try {
+                    await onMarkExit(pass);
+                  } finally {
+                    setExiting(false);
+                  }
+                }}
+                title="Mark this vehicle as exited from campus"
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <span>{exiting ? "Marking..." : "Mark Exit"}</span>
+              </button>
+            )}
+
             <button
               type="button"
               className="btn btn-sm btn-primary"

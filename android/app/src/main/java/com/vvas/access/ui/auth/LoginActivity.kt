@@ -98,6 +98,10 @@ class LoginActivity : AppCompatActivity() {
             binding.etUsername.setText("admin")
             binding.etPassword.setText("admin123")
         }
+        binding.btnQuickCamera.setOnClickListener {
+            binding.etUsername.setText("gatecam")
+            binding.etPassword.setText("gatecam123")
+        }
     }
 
     private fun setupLoginButton() {

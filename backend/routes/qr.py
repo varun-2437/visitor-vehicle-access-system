@@ -88,12 +88,6 @@ def verify_qr_code(
     if not visitor_pass:
         return QRVerifyResponse(valid=False, message="Invalid QR code — pass not found")
 
-    # Check expiry
-    if datetime.utcnow() > visitor_pass.expires_at:
-        visitor_pass.status = PassStatus.expired
-        db.commit()
-        return QRVerifyResponse(valid=False, message="❌ Pass Expired: This visitor pass has expired.", visitor_pass=visitor_pass)
-
     # ── Deduplication Check ──
     # If this exact action was recorded within the last 10 seconds, return the success response without showing a false denial
     recent_log = db.query(AccessLog).filter(
@@ -108,7 +102,8 @@ def verify_qr_code(
             visitor_pass=visitor_pass,
         )
 
-    # ── State Validation ──
+    # ── State & Expiry Validation ──
+    # A vehicle currently inside campus MUST never be marked expired until it exits.
     if data.action == "entry":
         if visitor_pass.status in [PassStatus.in_campus, PassStatus.used]:
             return QRVerifyResponse(
@@ -122,9 +117,25 @@ def verify_qr_code(
                 message="❌ Entry Denied: This pass has completed its visit and the vehicle has already exited.",
                 visitor_pass=visitor_pass,
             )
+        if visitor_pass.status == PassStatus.expired or datetime.utcnow() > visitor_pass.expires_at:
+            visitor_pass.status = PassStatus.expired
+            db.commit()
+            return QRVerifyResponse(
+                valid=False,
+                message="❌ Pass Expired: This visitor pass has expired.",
+                visitor_pass=visitor_pass,
+            )
 
     if data.action == "exit":
         if visitor_pass.status in [PassStatus.not_inside, PassStatus.approved, PassStatus.pending]:
+            if datetime.utcnow() > visitor_pass.expires_at:
+                visitor_pass.status = PassStatus.expired
+                db.commit()
+                return QRVerifyResponse(
+                    valid=False,
+                    message="❌ Pass Expired: This visitor pass has expired and never entered.",
+                    visitor_pass=visitor_pass,
+                )
             return QRVerifyResponse(
                 valid=False,
                 message="❌ Exit Denied: This vehicle has NOT entered the campus yet.",
@@ -134,6 +145,12 @@ def verify_qr_code(
             return QRVerifyResponse(
                 valid=False,
                 message="❌ Exit Denied: This vehicle has ALREADY exited the campus.",
+                visitor_pass=visitor_pass,
+            )
+        if visitor_pass.status == PassStatus.expired:
+            return QRVerifyResponse(
+                valid=False,
+                message="❌ Exit Denied: This pass is already marked expired.",
                 visitor_pass=visitor_pass,
             )
 
@@ -169,6 +186,48 @@ def verify_qr_code(
     return QRVerifyResponse(
         valid=True,
         message=f"✅ Vehicle {data.action.upper()} recorded for {visitor_pass.visitor_name}",
+        visitor_pass=visitor_pass,
+    )
+
+
+@router.post("/passes/{pass_id}/mark-exit", response_model=QRVerifyResponse)
+def mark_vehicle_exit(
+    pass_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("guard", "admin")),
+):
+    """Mark a currently in-campus vehicle pass as exited."""
+    visitor_pass = db.query(VisitorPass).filter(VisitorPass.id == pass_id).first()
+    if not visitor_pass:
+        raise HTTPException(status_code=404, detail="Visitor pass not found")
+
+    if visitor_pass.status == PassStatus.exited:
+        return QRVerifyResponse(
+            valid=False,
+            message="Vehicle has already exited the campus.",
+            visitor_pass=visitor_pass,
+        )
+
+    if visitor_pass.status not in [PassStatus.in_campus, PassStatus.used]:
+        return QRVerifyResponse(
+            valid=False,
+            message="Vehicle has not entered the campus yet.",
+            visitor_pass=visitor_pass,
+        )
+
+    log = AccessLog(
+        visitor_pass_id=visitor_pass.id,
+        scanned_by=current_user.id,
+        action="exit",
+    )
+    db.add(log)
+    visitor_pass.status = PassStatus.exited
+    db.commit()
+    db.refresh(visitor_pass)
+
+    return QRVerifyResponse(
+        valid=True,
+        message=f"✅ Vehicle EXIT marked for {visitor_pass.visitor_name} ({visitor_pass.vehicle_number or 'Walk-in'})",
         visitor_pass=visitor_pass,
     )
 
@@ -316,14 +375,10 @@ def get_campus_vehicle_stats(
         now = datetime.utcnow()
         end_time = datetime(now.year, now.month, now.day, 23, 59, 59, 999999)
 
-    # 1. Vehicles that entered today and are currently inside campus
+    # 1. Vehicles currently inside campus (persists across days until exit)
     vehicles_inside = (
-        db.query(func.count(func.distinct(VisitorPass.id)))
-        .join(AccessLog, AccessLog.visitor_pass_id == VisitorPass.id)
+        db.query(func.count(VisitorPass.id))
         .filter(
-            AccessLog.action == LogAction.entry,
-            AccessLog.timestamp >= start_time,
-            AccessLog.timestamp <= end_time,
             VisitorPass.status.in_([PassStatus.in_campus, PassStatus.used]),
             VisitorPass.vehicle_number.isnot(None),
             func.trim(VisitorPass.vehicle_number) != "",

@@ -12,8 +12,8 @@ android {
         applicationId = "com.vvas.access"
         minSdk = 24
         targetSdk = 37
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 5
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -57,6 +57,12 @@ dependencies {
     // Image loading & QR Generation
     implementation(libs.glide)
     implementation(libs.zxing.core)
+
+    // CameraX for live ANPR video feed
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)

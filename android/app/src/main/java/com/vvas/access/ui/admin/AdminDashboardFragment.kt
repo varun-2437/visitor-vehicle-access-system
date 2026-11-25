@@ -56,7 +56,9 @@ class AdminDashboardFragment : Fragment() {
 
     private fun setupRecyclerViews() {
         passesAdapter = PassesAdapter { pass ->
-            PassDetailDialog(requireContext(), pass).show()
+            PassDetailDialog(requireContext(), pass) {
+                loadDashboardData()
+            }.show()
         }
         binding.rvAdminPasses.layoutManager = LinearLayoutManager(requireContext())
         binding.rvAdminPasses.adapter = passesAdapter

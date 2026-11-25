@@ -192,6 +192,26 @@ export default function GuardDashboard() {
     }
   };
 
+  const handleMarkExit = async (passObj) => {
+    try {
+      const res = await API.post(`/api/qr/passes/${passObj.id}/mark-exit`);
+      if (res.data?.valid) {
+        setToast({ message: res.data.message || "Vehicle marked as EXITED", type: "success" });
+        if (printPass?.id === passObj.id && res.data.visitor_pass) {
+          setPrintPass(res.data.visitor_pass);
+        }
+        await fetchTodayData();
+      } else {
+        setToast({ message: res.data?.message || "Could not mark exit", type: "error" });
+      }
+    } catch (err) {
+      setToast({
+        message: err.response?.data?.detail || "Failed to mark vehicle as exited",
+        type: "error",
+      });
+    }
+  };
+
   const startScanner = async () => {
     setError("");
     setScanResult(null);
@@ -431,8 +451,7 @@ export default function GuardDashboard() {
   const handleSelectInsideVehicles = () => {
     setActiveTab("passes");
     setStatusFilter("in_campus");
-    setDatePreset("today");
-    applyDatePreset("today");
+    applyDatePreset("all");
     setTimeout(() => {
       document.querySelector(".panel")?.scrollIntoView({ behavior: "smooth" });
     }, 100);
@@ -920,15 +939,30 @@ export default function GuardDashboard() {
                         <td>{renderStatusBadge(p.status)}</td>
                         <td>{formatDateTime(p.expires_at)}</td>
                         <td>
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-sm"
-                            onClick={(e) => { e.stopPropagation(); setPrintPass(p); }}
-                            style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
-                            title="View & Print Pass Badge / PDF"
-                          >
-                            <PrinterIcon size={14} /> Print / PDF
-                          </button>
+                          <div style={{ display: "inline-flex", gap: "6px", flexWrap: "wrap" }}>
+                            {(p.status === "in_campus" || p.status === "used") && (
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMarkExit(p);
+                                }}
+                                title="Mark this vehicle as exited"
+                              >
+                                Mark Exit
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={(e) => { e.stopPropagation(); setPrintPass(p); }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+                              title="View & Print Pass Badge / PDF"
+                            >
+                              <PrinterIcon size={14} /> Print / PDF
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1086,6 +1120,7 @@ export default function GuardDashboard() {
                       <th>Host Resident / Flat</th>
                       <th>Logged By Guard</th>
                       <th>Logged Date & Time</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1104,6 +1139,22 @@ export default function GuardDashboard() {
                         <td>{log.visitor_pass?.resident?.full_name || "—"} ({log.visitor_pass?.resident?.flat_number || "Gate"})</td>
                         <td>{log.guard?.full_name || "—"}</td>
                         <td>{formatDateTime(log.timestamp)}</td>
+                        <td>
+                          {log.visitor_pass && (log.visitor_pass.status === "in_campus" || log.visitor_pass.status === "used") ? (
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkExit(log.visitor_pass);
+                              }}
+                            >
+                              Mark Exit
+                            </button>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1130,6 +1181,7 @@ export default function GuardDashboard() {
         <PrintablePassModal
           pass={printPass}
           onClose={() => setPrintPass(null)}
+          onMarkExit={handleMarkExit}
         />
       )}
     </>

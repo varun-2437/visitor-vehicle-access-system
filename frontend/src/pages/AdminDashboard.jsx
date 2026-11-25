@@ -161,6 +161,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleMarkExit = async (passObj) => {
+    try {
+      const res = await API.post(`/api/qr/passes/${passObj.id}/mark-exit`);
+      if (res.data?.valid) {
+        setToast({ message: res.data.message || "Vehicle marked as EXITED", type: "success" });
+        await fetchLogs();
+      } else {
+        setToast({ message: res.data?.message || "Could not mark exit", type: "error" });
+      }
+    } catch (err) {
+      setToast({
+        message: err.response?.data?.detail || "Failed to mark vehicle as exited",
+        type: "error",
+      });
+    }
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setError("");
@@ -395,8 +412,8 @@ export default function AdminDashboard() {
 
   const handleSelectInsideVehicles = () => {
     setActiveTab("logs");
-    setDatePreset("today");
-    applyDatePreset("today");
+    setActionFilter("all");
+    applyDatePreset("all");
     setTimeout(() => {
       document.querySelector(".tabs")?.scrollIntoView({ behavior: "smooth" });
     }, 100);
@@ -831,6 +848,7 @@ export default function AdminDashboard() {
                             <th>Host Resident / Flat</th>
                             <th>Scanned By Guard</th>
                             <th>Time Recorded</th>
+                            <th>Mark Exit</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -845,6 +863,19 @@ export default function AdminDashboard() {
                               <td>{log.visitor_pass?.resident?.full_name || "—"} ({log.visitor_pass?.resident?.flat_number || "Gate"})</td>
                               <td>{log.guard?.full_name || "—"}</td>
                               <td>{formatDateTime(log.timestamp)}</td>
+                              <td>
+                                {log.visitor_pass && (log.visitor_pass.status === "in_campus" || log.visitor_pass.status === "used") ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => handleMarkExit(log.visitor_pass)}
+                                  >
+                                    Mark Exit
+                                  </button>
+                                ) : (
+                                  <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>—</span>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>

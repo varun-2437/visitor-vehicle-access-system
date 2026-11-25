@@ -17,10 +17,13 @@ import urllib.request
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models import User, VisitorPass, AccessLog, PassStatus, LogAction
+from config import SECRET_KEY, ALGORITHM
 from schemas import (
     ANPRDetectResponse,
     ANPRLogRequest,
@@ -31,8 +34,26 @@ from auth import require_role
 from routes.qr import generate_qr_code_file
 
 router = APIRouter(prefix="/api/anpr", tags=["ANPR AI Model"])
+optional_oauth2 = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
-# In-memory storage for remote phone camera snapshots
+
+def get_optional_user(
+    token: Optional[str] = Depends(optional_oauth2),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if not username:
+            return None
+        return db.query(User).filter(User.username == username).first()
+    except JWTError:
+        return None
+
+
+# In-memory storage for remote phone camera live feed & snapshots
 latest_remote_frame = {
     "image_bytes": None,
     "preview_base64": None,
@@ -41,6 +62,11 @@ latest_remote_frame = {
     "frame_id": 0,
     "consumed": True,
     "detection": None,
+    "stream_state": "disconnected",  # "disconnected", "connected", "streaming", "paused"
+    "sender_username": None,
+    "sender_name": None,
+    "last_heartbeat": None,
+    "stream_mode": "snapshot",
 }
 
 # ─── Load Real ANPR Models at startup ───
@@ -387,19 +413,64 @@ def get_network_info():
     }
 
 
+@router.post("/stream-status")
+def update_remote_stream_status(
+    state: str = Form(...),  # "connected", "streaming", "paused", "disconnected"
+    device_info: Optional[str] = Form("Mobile Device"),
+    stream_mode: Optional[str] = Form("live_stream"),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    """Updates remote phone camera connection state for the web ANPR status indicator."""
+    global latest_remote_frame
+    allowed_states = {"connected", "streaming", "paused", "disconnected"}
+    clean_state = state.strip().lower()
+    if clean_state not in allowed_states:
+        raise HTTPException(status_code=400, detail=f"Invalid stream state: {state}")
+
+    if current_user and current_user.role not in ("camera", "guard", "admin"):
+        raise HTTPException(status_code=403, detail="Only camera, guard, or admin accounts can stream gate feeds.")
+
+    now_iso = datetime.utcnow().isoformat()
+    latest_remote_frame["stream_state"] = clean_state
+    latest_remote_frame["stream_mode"] = stream_mode or "live_stream"
+    latest_remote_frame["device_info"] = device_info or latest_remote_frame.get("device_info") or "Mobile Device"
+
+    if current_user:
+        latest_remote_frame["sender_username"] = current_user.username
+        latest_remote_frame["sender_name"] = current_user.full_name
+
+    if clean_state == "disconnected":
+        latest_remote_frame["last_heartbeat"] = None
+    else:
+        latest_remote_frame["last_heartbeat"] = now_iso
+
+    return {
+        "stream_state": latest_remote_frame["stream_state"],
+        "sender_username": latest_remote_frame["sender_username"],
+        "sender_name": latest_remote_frame["sender_name"],
+        "device_info": latest_remote_frame["device_info"],
+        "timestamp": now_iso,
+    }
+
+
 @router.post("/remote-frame")
 async def upload_remote_phone_frame(
     file: Optional[UploadFile] = File(None),
     image_base64: Optional[str] = Form(None),
     device_info: Optional[str] = Form("Mobile Device"),
+    stream_mode: Optional[str] = Form("snapshot"),
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """
-    Receives camera frame transmitted wirelessly from phone browser.
+    Receives camera frame transmitted wirelessly from phone app or phone browser.
     Runs Fast-ALPR AI inference immediately, looks up active visitor passes,
     and stores frame + detection in memory for the laptop dashboard.
     """
     global latest_remote_frame
+    if current_user and current_user.role not in ("camera", "guard", "admin"):
+        raise HTTPException(status_code=403, detail="Only camera, guard, or admin accounts can stream gate feeds.")
+
     raw_bytes = None
     if file:
         raw_bytes = await file.read()
@@ -415,7 +486,7 @@ async def upload_remote_phone_frame(
 
     b64_preview = f"data:image/jpeg;base64,{base64.b64encode(raw_bytes).decode('utf-8')}"
 
-    # Run Fast-ALPR AI Inference on the phone snapshot immediately
+    # Run Fast-ALPR AI Inference on the incoming phone frame
     inference_result = run_anpr_inference(image_bytes=raw_bytes)
     detected_plate = inference_result.get("plate", "")
     clean_detected = normalize_plate_string(detected_plate)
@@ -430,11 +501,18 @@ async def upload_remote_phone_frame(
                     break
 
     pass_found = matching_pass is not None
+    now_iso = datetime.utcnow().isoformat()
 
     latest_remote_frame["image_bytes"] = raw_bytes
     latest_remote_frame["preview_base64"] = b64_preview
-    latest_remote_frame["timestamp"] = datetime.utcnow().isoformat()
+    latest_remote_frame["timestamp"] = now_iso
+    latest_remote_frame["last_heartbeat"] = now_iso
+    latest_remote_frame["stream_state"] = "streaming" if stream_mode == "live_stream" else "connected"
+    latest_remote_frame["stream_mode"] = stream_mode or "snapshot"
     latest_remote_frame["device_info"] = device_info or "Mobile Phone Camera"
+    if current_user:
+        latest_remote_frame["sender_username"] = current_user.username
+        latest_remote_frame["sender_name"] = current_user.full_name
     latest_remote_frame["frame_id"] += 1
     latest_remote_frame["consumed"] = False
     latest_remote_frame["detection"] = {
@@ -461,6 +539,7 @@ async def upload_remote_phone_frame(
         "success": bool(detected_plate),
         "frame_id": latest_remote_frame["frame_id"],
         "timestamp": latest_remote_frame["timestamp"],
+        "stream_state": latest_remote_frame["stream_state"],
         "detected_plate": detected_plate,
         "confidence": inference_result["confidence"],
         "processing_time_ms": inference_result["processing_time_ms"],
@@ -477,7 +556,28 @@ async def upload_remote_phone_frame(
 
 @router.get("/remote-frame")
 def get_latest_remote_frame_status():
-    """Polling endpoint for laptop dashboard to check if phone has sent a new frame."""
+    """Polling endpoint for laptop dashboard to inspect live camera status, frame preview, and detection."""
+    raw_state = latest_remote_frame.get("stream_state") or "disconnected"
+    last_hb = latest_remote_frame.get("last_heartbeat")
+    seconds_since = None
+    effective_state = raw_state
+
+    if last_hb:
+        try:
+            elapsed = (datetime.utcnow() - datetime.fromisoformat(last_hb)).total_seconds()
+            seconds_since = round(elapsed, 1)
+            if raw_state == "streaming":
+                if elapsed > 20:
+                    effective_state = "disconnected"
+                elif elapsed > 7:
+                    effective_state = "reconnecting"
+            elif raw_state in ("connected", "paused") and elapsed > 45:
+                effective_state = "disconnected"
+        except Exception:
+            pass
+    elif raw_state != "disconnected":
+        effective_state = "disconnected"
+
     return {
         "has_frame": latest_remote_frame["image_bytes"] is not None,
         "frame_id": latest_remote_frame["frame_id"],
@@ -486,6 +586,12 @@ def get_latest_remote_frame_status():
         "consumed": latest_remote_frame["consumed"],
         "preview_base64": latest_remote_frame["preview_base64"],
         "detection": latest_remote_frame.get("detection"),
+        "stream_state": effective_state,
+        "raw_stream_state": raw_state,
+        "stream_mode": latest_remote_frame.get("stream_mode") or "snapshot",
+        "sender_username": latest_remote_frame.get("sender_username"),
+        "sender_name": latest_remote_frame.get("sender_name"),
+        "seconds_since_last_seen": seconds_since,
     }
 
 

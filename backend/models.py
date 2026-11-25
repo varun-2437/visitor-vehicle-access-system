@@ -11,6 +11,7 @@ class UserRole(str, enum.Enum):
     admin = "admin"
     resident = "resident"
     guard = "guard"
+    camera = "camera"
 
 
 class PassStatus(str, enum.Enum):

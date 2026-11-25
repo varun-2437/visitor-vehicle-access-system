@@ -55,6 +55,23 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
+        <!-- Live ANPR Camera Feed Shortcut (Guard & Admin only) -->
+        <Button
+            android:id="@+id/btnTopCamera"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginEnd="6dp"
+            android:backgroundTint="#33FFFFFF"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="10dp"
+            android:text="📡 Cam"
+            android:textColor="@color/white"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <!-- Logout Button -->
         <Button
             android:id="@+id/btnTopLogout"

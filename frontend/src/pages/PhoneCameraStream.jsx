@@ -34,18 +34,35 @@ export default function PhoneCameraStream() {
     setIsSecure(secure);
     setHasMediaDevices(media);
 
-    // Verify backend connectivity
+    // Verify backend connectivity & register connected state
     checkBackendConnection();
 
     return () => {
       stopLiveStream();
+      reportStreamStatus("disconnected");
     };
   }, []);
+
+  const reportStreamStatus = async (state) => {
+    try {
+      const fd = new FormData();
+      fd.append("state", state);
+      fd.append(
+        "device_info",
+        navigator.userAgent.includes("iPhone") ? "iPhone Browser Cam" : "Android Browser Cam"
+      );
+      fd.append("stream_mode", cameraActive ? "live_stream" : "snapshot");
+      await API.post("/api/anpr/stream-status", fd);
+    } catch {
+      // ignore background status errors
+    }
+  };
 
   const checkBackendConnection = async () => {
     try {
       await API.get("/api/anpr/network-info");
       setServerConnected(true);
+      await reportStreamStatus("connected");
     } catch {
       setServerConnected(false);
     }
@@ -272,32 +289,64 @@ export default function PhoneCameraStream() {
           </div>
         </div>
 
-        {/* Server Connection Indicator */}
-        <div
-          style={{
-            background: serverConnected ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-            border: `1px solid ${serverConnected ? "#22c55e" : "#ef4444"}`,
-            color: serverConnected ? "#4ade80" : "#fca5a5",
-            fontSize: "0.72rem",
-            fontWeight: 700,
-            padding: "4px 10px",
-            borderRadius: "16px",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-          }}
-        >
-          <span
-            style={{
-              width: "6px",
-              height: "6px",
-              borderRadius: "50%",
-              background: serverConnected ? "#4ade80" : "#ef4444",
-              display: "inline-block",
-            }}
-          ></span>
-          {serverConnected ? "LINKED" : "OFFLINE"}
-        </div>
+        {/* Server & Stream Connection Indicator */}
+        {(() => {
+          const stateLabel = !serverConnected
+            ? "DISCONNECTED"
+            : transmitting
+            ? "TRANSMITTING..."
+            : cameraActive
+            ? "STREAMING LIVE"
+            : "CONNECTED";
+          const bg = !serverConnected
+            ? "rgba(239, 68, 68, 0.15)"
+            : transmitting
+            ? "rgba(245, 158, 11, 0.15)"
+            : cameraActive
+            ? "rgba(34, 197, 94, 0.18)"
+            : "rgba(59, 130, 246, 0.18)";
+          const border = !serverConnected
+            ? "#ef4444"
+            : transmitting
+            ? "#f59e0b"
+            : cameraActive
+            ? "#22c55e"
+            : "#3b82f6";
+          const fg = !serverConnected
+            ? "#fca5a5"
+            : transmitting
+            ? "#fcd34d"
+            : cameraActive
+            ? "#4ade80"
+            : "#93c5fd";
+          return (
+            <div
+              style={{
+                background: bg,
+                border: `1px solid ${border}`,
+                color: fg,
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                padding: "4px 10px",
+                borderRadius: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <span
+                style={{
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: fg,
+                  display: "inline-block",
+                }}
+              ></span>
+              {stateLabel}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Hidden File Inputs for Native Camera & Gallery ── */}

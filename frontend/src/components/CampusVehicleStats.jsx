@@ -71,14 +71,14 @@ export default function CampusVehicleStats({
         <div className="campus-stat-info">
           <div className="stat-badge-row">
             <span className="stat-badge stat-badge-inside">
-              <span className="stat-pulse-dot" /> Live Today
+              <span className="stat-pulse-dot" /> Live Now
             </span>
           </div>
           <div className="campus-stat-value">
             {loading ? "…" : stats.vehicles_inside}
           </div>
           <div className="campus-stat-title">Vehicles Inside Campus</div>
-          <div className="campus-stat-desc">Active inside campus today (resets daily)</div>
+          <div className="campus-stat-desc">Active inside campus (until exit)</div>
           {onSelectInside && (
             <span className="stat-click-hint">View vehicles inside ➔</span>
           )}

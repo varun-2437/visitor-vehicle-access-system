@@ -2,6 +2,7 @@ package com.vvas.access.data.api
 
 import com.vvas.access.data.model.*
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.*
 
 interface ApiService {
@@ -31,6 +32,11 @@ interface ApiService {
         @Body request: CreatePassRequest
     ): VisitorPass
 
+    @POST("api/qr/passes/{pass_id}/mark-exit")
+    suspend fun markPassExit(
+        @Path("pass_id") passId: Int
+    ): QRVerifyResponse
+
     // ── Dashboard Statistics ──
     @GET("api/qr/stats")
     suspend fun getStats(
@@ -49,10 +55,26 @@ interface ApiService {
         @Query("all_time") allTime: Boolean? = null
     ): List<AccessLog>
 
-    // ── Fast-ALPR AI Plate Recognition ──
+    // ── Fast-ALPR AI Plate Recognition & Live Phone Stream ──
     @Multipart
     @POST("api/anpr/detect-plate")
     suspend fun detectPlate(
         @Part file: MultipartBody.Part
     ): ANPRDetectResponse
+
+    @Multipart
+    @POST("api/anpr/remote-frame")
+    suspend fun uploadRemoteFrame(
+        @Part file: MultipartBody.Part,
+        @Part("device_info") deviceInfo: RequestBody,
+        @Part("stream_mode") streamMode: RequestBody
+    ): RemoteFrameUploadResponse
+
+    @FormUrlEncoded
+    @POST("api/anpr/stream-status")
+    suspend fun updateStreamStatus(
+        @Field("state") state: String,
+        @Field("device_info") deviceInfo: String,
+        @Field("stream_mode") streamMode: String = "live_stream"
+    ): StreamStatusResponse
 }

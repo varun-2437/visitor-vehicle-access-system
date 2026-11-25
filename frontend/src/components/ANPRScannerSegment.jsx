@@ -65,9 +65,11 @@ export default function ANPRScannerSegment({
   const [walkinPurpose, setWalkinPurpose] = useState("");
   const [loggingAccess, setLoggingAccess] = useState(false);
 
-  // Phone remote frame status
+  // Phone remote frame status & live stream options
   const [remoteFrameStatus, setRemoteFrameStatus] = useState(null);
   const [lastRemoteFrameId, setLastRemoteFrameId] = useState(0);
+  const [autoDetectStream, setAutoDetectStream] = useState(true);
+  const [showConnectSetup, setShowConnectSetup] = useState(true);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -81,6 +83,7 @@ export default function ANPRScannerSegment({
     fetchSampleVehicles();
     fetchActivityRecords();
     enumerateLocalCameras();
+    checkRemoteFrame();
 
     return () => {
       stopLocalCamera();
@@ -89,17 +92,14 @@ export default function ANPRScannerSegment({
     };
   }, []);
 
-  // Poll for phone camera frames when in phone_qr mode
+  // Poll for live mobile feed & connection state continuously when active
   useEffect(() => {
-    if (inputMode === "phone_qr") {
-      pollTimerRef.current = setInterval(checkRemoteFrame, 1600);
-    } else {
-      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    }
+    const intervalMs = inputMode === "phone_qr" ? 1000 : 3000;
+    pollTimerRef.current = setInterval(checkRemoteFrame, intervalMs);
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
-  }, [inputMode, lastRemoteFrameId]);
+  }, [inputMode, lastRemoteFrameId, autoDetectStream]);
 
   // Handle auto-fetch for IP stream
   useEffect(() => {
@@ -157,45 +157,85 @@ export default function ANPRScannerSegment({
     }
   };
 
-  // Check if phone has pushed a new frame
+  // Check if phone app or browser has pushed a new frame or updated status
   const checkRemoteFrame = async () => {
     try {
       const res = await API.get("/api/anpr/remote-frame");
       setRemoteFrameStatus(res.data);
 
-      if (res.data.has_frame && !res.data.consumed && res.data.frame_id !== lastRemoteFrameId) {
+      if (
+        inputMode === "phone_qr" &&
+        autoDetectStream &&
+        res.data.has_frame &&
+        !res.data.consumed &&
+        res.data.frame_id !== lastRemoteFrameId
+      ) {
         setLastRemoteFrameId(res.data.frame_id);
-        // Automatically run ANPR inference on the incoming phone snapshot!
-        await processIncomingRemoteFrame();
+        const isLiveStream = res.data.stream_mode === "live_stream";
+        await processIncomingRemoteFrame(isLiveStream);
       }
     } catch (e) {
       // ignore transient polling errors
     }
   };
 
-  const processIncomingRemoteFrame = async () => {
-    setLoading(true);
-    setError("");
+  const getStreamStatusMeta = () => {
+    const state = remoteFrameStatus?.stream_state || "disconnected";
+    const sender = remoteFrameStatus?.sender_username
+      ? `@${remoteFrameStatus.sender_username}`
+      : remoteFrameStatus?.device_info || "Phone Camera";
+
+    switch (state) {
+      case "streaming":
+        return { cls: "state-streaming", label: `Streaming Live (${sender})` };
+      case "connected":
+        return { cls: "state-connected", label: `Connected (${sender})` };
+      case "paused":
+        return { cls: "state-paused", label: `Paused (${sender})` };
+      case "reconnecting":
+        return { cls: "state-reconnecting", label: `Reconnecting (${sender})` };
+      default:
+        return { cls: "state-disconnected", label: "Phone Cam: Disconnected" };
+    }
+  };
+
+  const processIncomingRemoteFrame = async (silentOnEmpty = false) => {
+    if (!silentOnEmpty) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const res = await API.post("/api/anpr/process-remote-frame");
       if (!res.data.success || !res.data.detected_plate) {
-        setError(res.data.message || "No vehicle license plate recognized in this phone snapshot. Please take a closer photo with good lighting.");
-        setToast?.({
-          message: res.data.message || "No plate detected in phone snapshot.",
-          type: "warning",
-        });
-        setDetectedResult(null);
+        if (!silentOnEmpty) {
+          setError(res.data.message || "No vehicle license plate recognized in this phone snapshot. Please take a closer photo with good lighting.");
+          setToast?.({
+            message: res.data.message || "No plate detected in phone snapshot.",
+            type: "warning",
+          });
+          setDetectedResult(null);
+        }
       } else {
-        handleModelInferenceSuccess(res.data, "Wireless Phone Camera");
-        setToast?.({
-          message: `Phone snapshot received! Plate ${res.data.detected_plate} detected.`,
-          type: "success",
-        });
+        setError("");
+        handleModelInferenceSuccess(
+          res.data,
+          remoteFrameStatus?.stream_mode === "live_stream"
+            ? `Mobile Live Feed (${remoteFrameStatus?.sender_username ? "@" + remoteFrameStatus.sender_username : "Phone"})`
+            : "Wireless Phone Camera"
+        );
+        if (!silentOnEmpty) {
+          setToast?.({
+            message: `Phone snapshot received! Plate ${res.data.detected_plate} detected.`,
+            type: "success",
+          });
+        }
       }
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to process phone frame");
+      if (!silentOnEmpty) {
+        setError(err.response?.data?.detail || "Failed to process phone frame");
+      }
     } finally {
-      setLoading(false);
+      if (!silentOnEmpty) setLoading(false);
     }
   };
 
@@ -428,7 +468,21 @@ export default function ANPRScannerSegment({
           </p>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          {/* Live Mobile Camera Connection Status Pill */}
+          {(() => {
+            const meta = getStreamStatusMeta();
+            return (
+              <span
+                className={`anpr-conn-pill ${meta.cls}`}
+                title="Live connection state of mobile camera feed"
+              >
+                <span className="status-dot" />
+                {meta.label}
+              </span>
+            );
+          })()}
+
           <span className="anpr-model-pill">
             <CpuIcon size={14} /> AI Model: Fast-ALPR (YOLOv9 + Transformer OCR)
           </span>
@@ -504,75 +558,126 @@ export default function ANPRScannerSegment({
             </div>
           </div>
 
-          {/* ── Option 1: Wireless Phone Camera (QR Connect) ── */}
+          {/* ── Option 1: Mobile App Live Feed / Wireless Phone Camera ── */}
           {inputMode === "phone_qr" && (
             <div>
-              <div className="anpr-phone-connect-card">
-                {networkInfo.qr_data_uri ? (
+              {/* Live Feed Preview Box when frames are present */}
+              {remoteFrameStatus?.has_frame && remoteFrameStatus?.preview_base64 ? (
+                <div className="anpr-live-feed-box">
                   <img
-                    src={networkInfo.qr_data_uri}
-                    alt="Scan to open Phone Camera"
-                    className="anpr-qr-code-img"
+                    src={remoteFrameStatus.preview_base64}
+                    alt="Live Mobile Gate Camera Feed"
+                    className="anpr-live-feed-img"
                   />
-                ) : (
-                  <div className="anpr-qr-code-img" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span className="spinner"></span>
+                  <div className="anpr-live-feed-overlay">
+                    <span className="anpr-live-badge">
+                      {remoteFrameStatus.stream_state === "streaming"
+                        ? "🔴 LIVE FEED"
+                        : remoteFrameStatus.stream_state === "paused"
+                        ? "⏸ PAUSED"
+                        : "📸 LATEST FRAME"}{" "}
+                      • #{remoteFrameStatus.frame_id}
+                    </span>
+                    <span className="anpr-live-badge">
+                      {remoteFrameStatus.sender_username
+                        ? `@${remoteFrameStatus.sender_username}`
+                        : remoteFrameStatus.device_info}
+                    </span>
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="anpr-live-feed-box" style={{ flexDirection: "column", gap: "8px", padding: "20px", textAlign: "center" }}>
+                  <div style={{ fontSize: "2rem" }}>📡</div>
+                  <div style={{ color: "#e2e8f0", fontWeight: 700, fontSize: "0.95rem" }}>
+                    Awaiting Live Mobile Camera Feed
+                  </div>
+                  <div style={{ color: "#94a3b8", fontSize: "0.8rem", maxWidth: "340px" }}>
+                    Sign in to the <strong>VVAS Android App</strong> with <code>gatecam</code> / <code>gatecam123</code> (or Guard/Admin <strong>📡 Cam</strong>) and tap <strong>Start Live Feed</strong>.
+                  </div>
+                </div>
+              )}
 
-                <div style={{ flex: 1, minWidth: "200px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
-                    <span className="anpr-pulse-indicator"></span>
-                    <strong style={{ fontSize: "0.92rem", color: "var(--text)" }}>
-                      Live Phone Camera Receiver Active
-                    </strong>
-                  </div>
+              {/* Live Controls & Status Row */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", fontWeight: 600, color: "var(--text)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={autoDetectStream}
+                    onChange={(e) => setAutoDetectStream(e.target.checked)}
+                  />
+                  Auto-Detect Plates from Incoming Feed
+                </label>
 
-                  <div className="anpr-phone-step">
-                    <span className="anpr-step-num">1</span>
-                    <span>Scan this QR code with your phone camera (on same Wi-Fi).</span>
-                  </div>
-                  <div className="anpr-phone-step">
-                    <span className="anpr-step-num">2</span>
-                    <span>Point phone at vehicle plate and tap <strong>"Snap & Send"</strong>.</span>
-                  </div>
-                  <div className="anpr-phone-step">
-                    <span className="anpr-step-num">3</span>
-                    <span>The laptop dashboard automatically catches the snapshot and extracts the plate!</span>
-                  </div>
-
-                  <div style={{ marginTop: "10px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                    Direct Mobile URL:{" "}
-                    <a
-                      href={networkInfo.phone_camera_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "var(--primary)", fontWeight: 600, wordBreak: "break-all" }}
-                    >
-                      {networkInfo.phone_camera_url}
-                    </a>
-                  </div>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setShowConnectSetup((v) => !v)}
+                  >
+                    {showConnectSetup ? "Hide Setup Guide" : "Show App Login / QR"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={loading || !remoteFrameStatus?.has_frame}
+                    onClick={() => processIncomingRemoteFrame(false)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    <RefreshIcon size={14} /> Scan Current Frame
+                  </button>
                 </div>
               </div>
 
-              {/* Status and Manual Pull Button */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "14px", flexWrap: "wrap", gap: "8px" }}>
-                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                  {remoteFrameStatus?.has_frame
-                    ? `Latest phone snapshot: #${remoteFrameStatus.frame_id} (${remoteFrameStatus.device_info})`
-                    : "Awaiting snapshot from mobile phone..."}
-                </span>
+              {showConnectSetup && (
+                <div className="anpr-phone-connect-card">
+                  {networkInfo.qr_data_uri ? (
+                    <img
+                      src={networkInfo.qr_data_uri}
+                      alt="Scan to open Phone Camera"
+                      className="anpr-qr-code-img"
+                    />
+                  ) : (
+                    <div className="anpr-qr-code-img" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span className="spinner"></span>
+                    </div>
+                  )}
 
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  disabled={loading}
-                  onClick={processIncomingRemoteFrame}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-                >
-                  <RefreshIcon size={14} /> Process Latest Phone Snapshot
-                </button>
-              </div>
+                  <div style={{ flex: 1, minWidth: "200px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                      <span className="anpr-pulse-indicator"></span>
+                      <strong style={{ fontSize: "0.9rem", color: "var(--text)" }}>
+                        Connect Phone (Android App or QR)
+                      </strong>
+                    </div>
+
+                    <div className="anpr-phone-step">
+                      <span className="anpr-step-num">1</span>
+                      <span>
+                        <strong>VVAS Android App:</strong> Login with dedicated camera credentials{" "}
+                        <code>gatecam</code> / <code>gatecam123</code> (or Guard/Admin <strong>📡 Cam</strong>) and tap <strong>Start Live Feed</strong>.
+                      </span>
+                    </div>
+                    <div className="anpr-phone-step">
+                      <span className="anpr-step-num">2</span>
+                      <span>
+                        <strong>Browser Option:</strong> Scan this QR code on the same Wi-Fi to snap &amp; upload.
+                      </span>
+                    </div>
+
+                    <div style={{ marginTop: "8px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                      Direct Mobile URL:{" "}
+                      <a
+                        href={networkInfo.phone_camera_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "var(--primary)", fontWeight: 600, wordBreak: "break-all" }}
+                      >
+                        {networkInfo.phone_camera_url}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

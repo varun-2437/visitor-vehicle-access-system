@@ -6,22 +6,32 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
+import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.vvas.access.R
+import com.vvas.access.data.api.ApiClient
 import com.vvas.access.data.model.VisitorPass
+import com.vvas.access.data.storage.SessionManager
 import com.vvas.access.databinding.DialogPassDetailBinding
 import com.vvas.access.utils.DateTimeUtils
 import com.vvas.access.utils.QRCodeGenerator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class PassDetailDialog(
     context: Context,
-    private val pass: VisitorPass
+    private val pass: VisitorPass,
+    private val onExitMarked: (() -> Unit)? = null
 ) : Dialog(context) {
 
     private lateinit var binding: DialogPassDetailBinding
+    private val dialogScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,7 +75,8 @@ class PassDetailDialog(
             }
         }
 
-        when (pass.status?.lowercase() ?: "not_inside") {
+        val normalizedStatus = pass.status?.lowercase() ?: "not_inside"
+        when (normalizedStatus) {
             "in_campus", "used" -> {
                 binding.tvDialogStatus.text = "ACTIVE PASS — VEHICLE INSIDE CAMPUS"
                 binding.tvDialogStatus.setBackgroundResource(R.drawable.bg_status_in_campus)
@@ -88,6 +99,18 @@ class PassDetailDialog(
             }
         }
 
+        // Only Admin (with callback) can mark an in-campus vehicle as exited from the dialog
+        val isAdmin = SessionManager(context).userRole == "admin"
+        val isInside = normalizedStatus == "in_campus" || normalizedStatus == "used"
+        if (isAdmin && isInside && onExitMarked != null) {
+            binding.btnMarkExitDialog.visibility = View.VISIBLE
+            binding.btnMarkExitDialog.setOnClickListener {
+                performMarkExit()
+            }
+        } else {
+            binding.btnMarkExitDialog.visibility = View.GONE
+        }
+
         binding.btnCopyToken.setOnClickListener {
             if (token.isNotBlank()) {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -101,9 +124,38 @@ class PassDetailDialog(
         binding.btnCloseDialog.setOnClickListener { dismiss() }
     }
 
+    private fun performMarkExit() {
+        binding.btnMarkExitDialog.isEnabled = false
+        binding.btnMarkExitDialog.text = "Marking Exit..."
+
+        dialogScope.launch {
+            try {
+                val res = ApiClient.getService(context).markPassExit(pass.id)
+                if (res.valid) {
+                    Toast.makeText(context, res.message.ifBlank { "Vehicle marked as exited!" }, Toast.LENGTH_SHORT).show()
+                    onExitMarked?.invoke()
+                    dismiss()
+                } else {
+                    Toast.makeText(context, res.message.ifBlank { "Could not mark exit" }, Toast.LENGTH_LONG).show()
+                    binding.btnMarkExitDialog.isEnabled = true
+                    binding.btnMarkExitDialog.text = "🚗 Mark Vehicle as Exited"
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                binding.btnMarkExitDialog.isEnabled = true
+                binding.btnMarkExitDialog.text = "🚗 Mark Vehicle as Exited"
+            }
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         val width = (context.resources.displayMetrics.widthPixels * 0.94).toInt()
         window?.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        dialogScope.cancel()
     }
 }

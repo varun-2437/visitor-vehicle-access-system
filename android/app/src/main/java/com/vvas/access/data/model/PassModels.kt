@@ -50,3 +50,31 @@ data class ANPRDetectResponse(
     @SerializedName("plate_image_data") val plateImageData: String? = null,
     @SerializedName("pass_found") val passFound: Boolean = false
 )
+
+data class QRVerifyResponse(
+    val valid: Boolean,
+    val message: String = "",
+    @SerializedName("visitor_pass") val visitorPass: VisitorPass? = null
+)
+
+data class RemoteFrameUploadResponse(
+    val success: Boolean = false,
+    @SerializedName("frame_id") val frameId: Int = 0,
+    val timestamp: String? = null,
+    @SerializedName("stream_state") val streamState: String? = null,
+    @SerializedName("detected_plate") val detectedPlate: String = "",
+    val confidence: Float = 0f,
+    @SerializedName("processing_time_ms") val processingTimeMs: Float = 0f,
+    @SerializedName("model_name") val modelName: String = "",
+    @SerializedName("pass_found") val passFound: Boolean = false,
+    @SerializedName("visitor_name") val visitorName: String? = null,
+    @SerializedName("flat_number") val flatNumber: String? = null,
+    @SerializedName("pass_id") val passId: Int? = null,
+    val message: String = ""
+)
+
+data class StreamStatusResponse(
+    @SerializedName("stream_state") val streamState: String = "disconnected",
+    @SerializedName("sender_username") val senderUsername: String? = null,
+    @SerializedName("device_info") val deviceInfo: String? = null
+)

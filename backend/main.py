@@ -70,6 +70,21 @@ def on_startup():
             print(f"✅ Default admin created: {DEFAULT_ADMIN_USERNAME} / {DEFAULT_ADMIN_PASSWORD}")
         else:
             print("ℹ️  Admin user already exists, skipping seed.")
+
+        existing_cam = db.query(User).filter(User.username == "gatecam").first()
+        if not existing_cam:
+            cam_user = User(
+                username="gatecam",
+                email="gatecam@vvas.local",
+                hashed_password=hash_password("gatecam123"),
+                full_name="Gate Camera Node",
+                role=UserRole.camera,
+                is_approved=True,
+                approval_status="approved",
+            )
+            db.add(cam_user)
+            db.commit()
+            print("✅ Default Gate Camera account created: gatecam / gatecam123")
     finally:
         db.close()
 
