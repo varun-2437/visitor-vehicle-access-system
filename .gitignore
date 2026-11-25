@@ -111,7 +111,7 @@ android/local.properties
 android/.idea/
 android/.cxx/
 android/*.apk
-!android/vvas-app-debug.apk
+!android/vvas-app-*.apk
 android/*.aab
 
 

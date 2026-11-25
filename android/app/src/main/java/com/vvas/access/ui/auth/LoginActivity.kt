@@ -9,6 +9,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.vvas.access.BuildConfig
 import com.vvas.access.MainActivity
 import com.vvas.access.data.api.ApiClient
 import com.vvas.access.data.model.LoginRequest
@@ -40,6 +41,8 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         applyWindowInsets()
+        binding.tvAppVersion.text =
+            "VVAS Mobile v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})"
         setupServerConfig()
         setupQuickFillButtons()
         setupLoginButton()

@@ -259,5 +259,15 @@
                 </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/tvAppVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="20dp"
+            android:text="VVAS Mobile v1.1.0 (Build 2)"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
     </LinearLayout>
 </ScrollView>

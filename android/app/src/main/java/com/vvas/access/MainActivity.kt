@@ -66,7 +66,8 @@ class MainActivity : AppCompatActivity() {
     private fun setupTopBar() {
         val user = sessionManager.currentUser
         binding.tvTopUserName.text = user?.fullName ?: user?.username ?: "User"
-        binding.tvTopUserRole.text = user?.role?.uppercase() ?: "USER"
+        val roleLabel = user?.role?.uppercase() ?: "USER"
+        binding.tvTopUserRole.text = "$roleLabel • v${BuildConfig.VERSION_NAME}"
 
         binding.btnTopLogout.setOnClickListener {
             sessionManager.clearSession()
