@@ -15,11 +15,17 @@ interface ApiService {
     @GET("api/auth/me")
     suspend fun getProfile(): User
 
-    // ── Passes ──
-    @GET("api/qr/passes")
-    suspend fun getPasses(): List<VisitorPass>
+    // ── Passes (Resident & Admin) ──
+    @GET("api/qr/my-passes")
+    suspend fun getMyPasses(): List<VisitorPass>
 
-    @POST("api/qr/passes")
+    @GET("api/qr/today-passes")
+    suspend fun getTodayPasses(
+        @Query("from_date") fromDate: String? = null,
+        @Query("to_date") toDate: String? = null
+    ): List<VisitorPass>
+
+    @POST("api/qr/generate")
     suspend fun createPass(
         @Body request: CreatePassRequest
     ): VisitorPass
@@ -32,8 +38,14 @@ interface ApiService {
     ): CampusStats
 
     // ── System Access Logs (Admin & Guard oversight) ──
-    @GET("api/qr/logs")
-    suspend fun getAccessLogs(): List<AccessLog>
+    @GET("api/admin/logs")
+    suspend fun getAdminLogs(): List<AccessLog>
+
+    @GET("api/qr/today-logs")
+    suspend fun getTodayLogs(
+        @Query("from_date") fromDate: String? = null,
+        @Query("to_date") toDate: String? = null
+    ): List<AccessLog>
 
     // ── Fast-ALPR AI Plate Recognition ──
     @Multipart

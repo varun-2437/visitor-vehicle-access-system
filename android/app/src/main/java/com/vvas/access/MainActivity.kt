@@ -3,6 +3,9 @@ package com.vvas.access
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import com.vvas.access.data.storage.SessionManager
 import com.vvas.access.databinding.ActivityMainBinding
@@ -26,11 +29,38 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+        }
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        applyWindowInsets()
         setupTopBar()
         loadRoleFragment()
+    }
+
+    private fun applyWindowInsets() {
+        val initialTop = binding.topAppBar.paddingTop
+        val initialLeft = binding.topAppBar.paddingLeft
+        val initialRight = binding.topAppBar.paddingRight
+        val initialBottom = binding.topAppBar.paddingBottom
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.mainRoot) { _, windowInsets ->
+            val bars = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            binding.topAppBar.setPadding(
+                initialLeft + bars.left,
+                initialTop + bars.top,
+                initialRight + bars.right,
+                initialBottom
+            )
+            binding.fragmentContainer.setPadding(bars.left, 0, bars.right, bars.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     private fun setupTopBar() {

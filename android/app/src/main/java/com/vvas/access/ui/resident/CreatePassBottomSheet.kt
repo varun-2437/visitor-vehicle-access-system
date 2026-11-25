@@ -1,16 +1,21 @@
 package com.vvas.access.ui.resident
 
-import android.app.Activity
-import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.vvas.access.R
@@ -18,11 +23,14 @@ import com.vvas.access.data.api.ApiClient
 import com.vvas.access.data.model.CreatePassRequest
 import com.vvas.access.data.model.VisitorPass
 import com.vvas.access.databinding.DialogCreatePassBinding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.InputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
 
 class CreatePassBottomSheet(
     private val onPassCreated: (VisitorPass) -> Unit
@@ -32,15 +40,33 @@ class CreatePassBottomSheet(
     private val binding get() = _binding!!
 
     private var selectedDurationHours = 24
+    private var pendingCameraUri: Uri? = null
 
-    // Photo picker launcher for vehicle plate image
-    private val imagePickerLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-                val imageUri: Uri? = result.data?.data
-                if (imageUri != null) {
-                    processImageForANPR(imageUri)
-                }
+    private val galleryPickerLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            if (uri != null) {
+                processImageForANPR(uri)
+            }
+        }
+
+    private val takePictureLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            val uri = pendingCameraUri
+            if (success && uri != null) {
+                processImageForANPR(uri)
+            }
+        }
+
+    private val cameraPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                launchCameraCapture()
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    "Camera permission is required to capture vehicle plates.",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
@@ -75,13 +101,16 @@ class CreatePassBottomSheet(
         val inactiveText = ContextCompat.getColor(requireContext(), R.color.text_secondary)
 
         fun updateButtons(active24: Boolean, active48: Boolean, active7d: Boolean) {
-            binding.btnDuration24h.setBackgroundColor(if (active24) activeBg else android.graphics.Color.TRANSPARENT)
+            binding.btnDuration24h.backgroundTintList =
+                ColorStateList.valueOf(if (active24) activeBg else Color.TRANSPARENT)
             binding.btnDuration24h.setTextColor(if (active24) activeText else inactiveText)
 
-            binding.btnDuration48h.setBackgroundColor(if (active48) activeBg else android.graphics.Color.TRANSPARENT)
+            binding.btnDuration48h.backgroundTintList =
+                ColorStateList.valueOf(if (active48) activeBg else Color.TRANSPARENT)
             binding.btnDuration48h.setTextColor(if (active48) activeText else inactiveText)
 
-            binding.btnDuration7d.setBackgroundColor(if (active7d) activeBg else android.graphics.Color.TRANSPARENT)
+            binding.btnDuration7d.backgroundTintList =
+                ColorStateList.valueOf(if (active7d) activeBg else Color.TRANSPARENT)
             binding.btnDuration7d.setTextColor(if (active7d) activeText else inactiveText)
         }
 
@@ -101,10 +130,62 @@ class CreatePassBottomSheet(
 
     private fun setupAnprButton() {
         binding.btnSnapPlateAnpr.setOnClickListener {
-            val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-            intent.type = "image/*"
-            imagePickerLauncher.launch(intent)
+            val options = arrayOf("📷 Take Photo with Camera", "🖼️ Choose Photo from Gallery")
+            AlertDialog.Builder(requireContext())
+                .setTitle("Vehicle Plate Photo for AI Recognition")
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> checkCameraAndLaunch()
+                        1 -> galleryPickerLauncher.launch("image/*")
+                    }
+                }
+                .show()
         }
+    }
+
+    private fun checkCameraAndLaunch() {
+        val ctx = requireContext()
+        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            launchCameraCapture()
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    private fun launchCameraCapture() {
+        val ctx = requireContext()
+        val photoFile = File.createTempFile("plate_capture_", ".jpg", ctx.cacheDir)
+        val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", photoFile)
+        pendingCameraUri = uri
+        takePictureLauncher.launch(uri)
+    }
+
+    private fun compressImageToJpeg(uri: Uri): ByteArray {
+        val ctx = requireContext()
+        val rawBytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return ByteArray(0)
+        if (rawBytes.isEmpty()) return ByteArray(0)
+
+        val bitmap = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size) ?: return rawBytes
+        val maxDim = 1280
+        val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
+            val ratio = minOf(maxDim.toFloat() / bitmap.width, maxDim.toFloat() / bitmap.height)
+            Bitmap.createScaledBitmap(
+                bitmap,
+                (bitmap.width * ratio).toInt().coerceAtLeast(1),
+                (bitmap.height * ratio).toInt().coerceAtLeast(1),
+                true
+            )
+        } else {
+            bitmap
+        }
+
+        val out = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        if (scaled != bitmap) scaled.recycle()
+        bitmap.recycle()
+        return out.toByteArray()
     }
 
     private fun processImageForANPR(imageUri: Uri) {
@@ -114,9 +195,7 @@ class CreatePassBottomSheet(
 
         lifecycleScope.launch {
             try {
-                val inputStream: InputStream? = requireContext().contentResolver.openInputStream(imageUri)
-                val bytes = inputStream?.readBytes() ?: ByteArray(0)
-                inputStream?.close()
+                val bytes = withContext(Dispatchers.IO) { compressImageToJpeg(imageUri) }
 
                 if (bytes.isEmpty()) {
                     Toast.makeText(requireContext(), "Failed to read image", Toast.LENGTH_SHORT).show()
@@ -128,6 +207,8 @@ class CreatePassBottomSheet(
 
                 val api = ApiClient.getService(requireContext())
                 val anprResponse = api.detectPlate(body)
+
+                if (_binding == null) return@launch
 
                 if (anprResponse.success && anprResponse.detectedPlate.isNotBlank()) {
                     val cleanPlate = anprResponse.detectedPlate.uppercase()
@@ -146,10 +227,14 @@ class CreatePassBottomSheet(
                     ).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "ANPR Error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                context?.let {
+                    Toast.makeText(it, "ANPR Error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
             } finally {
-                binding.layoutAnprLoading.visibility = View.GONE
-                binding.btnSnapPlateAnpr.isEnabled = true
+                if (_binding != null) {
+                    binding.layoutAnprLoading.visibility = View.GONE
+                    binding.btnSnapPlateAnpr.isEnabled = true
+                }
             }
         }
     }
@@ -186,17 +271,23 @@ class CreatePassBottomSheet(
                     visitorName = visitorName,
                     vehicleNumber = vehicleNumber,
                     purpose = purpose,
-                    expiresInHours = selectedDurationHours
+                    hoursValid = selectedDurationHours
                 )
                 val newPass = api.createPass(request)
-                Toast.makeText(requireContext(), "Pass #${newPass.id} created successfully!", Toast.LENGTH_SHORT).show()
+                context?.let {
+                    Toast.makeText(it, "Pass #${newPass.id} created successfully!", Toast.LENGTH_SHORT).show()
+                }
                 dismiss()
                 onPassCreated(newPass)
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                context?.let {
+                    Toast.makeText(it, "Failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
             } finally {
-                binding.btnSubmitCreatePass.isEnabled = true
-                binding.btnSubmitCreatePass.text = "Create & Pre-Register Pass"
+                if (_binding != null) {
+                    binding.btnSubmitCreatePass.isEnabled = true
+                    binding.btnSubmitCreatePass.text = "Create & Pre-Register Pass"
+                }
             }
         }
     }

@@ -54,7 +54,7 @@ class PassesAdapter(
             }
 
             // Status Badge formatting matching web dashboard colors
-            when (pass.status.lowercase()) {
+            when (pass.status?.lowercase() ?: "not_inside") {
                 "in_campus", "used" -> {
                     binding.tvStatusBadge.text = "● IN CAMPUS"
                     binding.tvStatusBadge.setBackgroundResource(R.drawable.bg_status_in_campus)

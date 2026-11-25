@@ -79,21 +79,26 @@ class GuardDashboardFragment : Fragment() {
         binding.guardProgressBar.visibility =
             if (binding.guardSwipeRefresh.isRefreshing) View.GONE else View.VISIBLE
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.getService(requireContext())
-                val passes = api.getPasses()
+                val passes = api.getTodayPasses()
+                if (_binding == null) return@launch
                 allPasses = passes
                 filterPasses(binding.etGuardSearch.text.toString())
             } catch (e: Exception) {
-                Toast.makeText(
-                    requireContext(),
-                    "Failed to fetch approved passes: ${e.localizedMessage}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                context?.let {
+                    Toast.makeText(
+                        it,
+                        "Failed to fetch approved passes: ${e.localizedMessage}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } finally {
-                binding.guardProgressBar.visibility = View.GONE
-                binding.guardSwipeRefresh.isRefreshing = false
+                if (_binding != null) {
+                    binding.guardProgressBar.visibility = View.GONE
+                    binding.guardSwipeRefresh.isRefreshing = false
+                }
             }
         }
     }

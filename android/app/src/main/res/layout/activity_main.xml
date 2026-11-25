@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mainRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_screen"
@@ -10,11 +11,13 @@
     <LinearLayout
         android:id="@+id/topAppBar"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
+        android:layout_height="wrap_content"
+        android:minHeight="64dp"
         android:background="@drawable/bg_crimson_gradient"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp">
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp">
 
         <TextView
             android:layout_width="wrap_content"
@@ -35,6 +38,8 @@
                 android:id="@+id/tvTopUserName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:text="Varun M"
                 android:textColor="@color/white"
                 android:textSize="14sp"
@@ -56,10 +61,10 @@
             style="@style/Widget.Material3.Button.TonalButton"
             android:layout_width="wrap_content"
             android:layout_height="36dp"
-            android:backgroundTint="#33FFFFFF"
+            android:backgroundTint="#4DFFFFFF"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            android:paddingHorizontal="12dp"
+            android:paddingHorizontal="14dp"
             android:text="@string/logout_btn"
             android:textColor="@color/white"
             android:textSize="11sp"
@@ -70,5 +75,6 @@
     <FrameLayout
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 </LinearLayout>

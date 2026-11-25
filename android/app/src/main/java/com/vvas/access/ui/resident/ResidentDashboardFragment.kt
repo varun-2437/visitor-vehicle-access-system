@@ -70,10 +70,11 @@ class ResidentDashboardFragment : Fragment() {
     private fun loadPasses() {
         binding.progressBar.visibility = if (binding.swipeRefresh.isRefreshing) View.GONE else View.VISIBLE
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.getService(requireContext())
-                val passes = api.getPasses()
+                val passes = api.getMyPasses()
+                if (_binding == null) return@launch
 
                 adapter.submitList(passes)
                 binding.tvPassesCount.text = "${passes.size} Passes"
@@ -86,10 +87,14 @@ class ResidentDashboardFragment : Fragment() {
                     binding.rvPasses.visibility = View.VISIBLE
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Failed to load passes: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                context?.let {
+                    Toast.makeText(it, "Failed to load passes: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
             } finally {
-                binding.progressBar.visibility = View.GONE
-                binding.swipeRefresh.isRefreshing = false
+                if (_binding != null) {
+                    binding.progressBar.visibility = View.GONE
+                    binding.swipeRefresh.isRefreshing = false
+                }
             }
         }
     }

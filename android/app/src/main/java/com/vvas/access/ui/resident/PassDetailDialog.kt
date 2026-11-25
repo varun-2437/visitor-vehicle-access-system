@@ -33,13 +33,16 @@ class PassDetailDialog(
         binding.tvDialogExpires.text = "Valid Until: ${DateTimeUtils.formatDateTime(pass.expiresAt)}"
 
         // Generate QR Code bitmap from pass QR Token
-        val qrBitmap = QRCodeGenerator.generateQRCode(pass.qrToken, 600)
-        if (qrBitmap != null) {
-            binding.ivQrCode.setImageBitmap(qrBitmap)
+        val token = pass.qrToken.orEmpty()
+        if (token.isNotBlank()) {
+            val qrBitmap = QRCodeGenerator.generateQRCode(token, 600)
+            if (qrBitmap != null) {
+                binding.ivQrCode.setImageBitmap(qrBitmap)
+            }
         }
 
         // Status badge
-        when (pass.status.lowercase()) {
+        when (pass.status?.lowercase() ?: "not_inside") {
             "in_campus", "used" -> {
                 binding.tvDialogStatus.text = "● IN CAMPUS"
                 binding.tvDialogStatus.setBackgroundResource(R.drawable.bg_status_in_campus)

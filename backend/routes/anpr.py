@@ -209,7 +209,7 @@ async def detect_vehicle_plate(
     image_base64: Optional[str] = Form(None),
     mock_plate: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("guard", "admin")),
+    current_user: User = Depends(require_role("resident", "guard", "admin")),
 ):
     """
     Receives camera frame or vehicle photo for ANPR AI plate recognition,

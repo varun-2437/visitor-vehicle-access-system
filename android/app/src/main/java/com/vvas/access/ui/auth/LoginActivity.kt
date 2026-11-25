@@ -5,6 +5,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.vvas.access.MainActivity
 import com.vvas.access.data.api.ApiClient
@@ -28,12 +31,36 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+        }
+
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        applyWindowInsets()
         setupServerConfig()
         setupQuickFillButtons()
         setupLoginButton()
+    }
+
+    private fun applyWindowInsets() {
+        val initialHeroTop = binding.heroHeader.paddingTop
+        val initialRootBottom = binding.loginRoot.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(binding.loginRoot) { _, windowInsets ->
+            val bars = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            binding.heroHeader.setPadding(
+                binding.heroHeader.paddingLeft,
+                initialHeroTop + bars.top,
+                binding.heroHeader.paddingRight,
+                binding.heroHeader.paddingBottom
+            )
+            binding.loginRoot.setPadding(bars.left, 0, bars.right, initialRootBottom + bars.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     private fun setupServerConfig() {

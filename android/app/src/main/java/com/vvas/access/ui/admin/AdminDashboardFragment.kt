@@ -1,5 +1,7 @@
 package com.vvas.access.ui.admin
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -16,6 +18,7 @@ import com.vvas.access.ui.resident.PassDetailDialog
 import com.vvas.access.ui.resident.PassesAdapter
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 class AdminDashboardFragment : Fragment() {
 
@@ -64,17 +67,17 @@ class AdminDashboardFragment : Fragment() {
         fun updateTabs(showLogs: Boolean) {
             showingLogsTab = showLogs
             if (showLogs) {
-                binding.btnTabLogs.setBackgroundColor(crimson)
+                binding.btnTabLogs.backgroundTintList = ColorStateList.valueOf(crimson)
                 binding.btnTabLogs.setTextColor(white)
-                binding.btnTabPasses.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                binding.btnTabPasses.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
                 binding.btnTabPasses.setTextColor(textSecondary)
 
                 binding.rvAdminLogs.visibility = View.VISIBLE
                 binding.rvAdminPasses.visibility = View.GONE
             } else {
-                binding.btnTabPasses.setBackgroundColor(crimson)
+                binding.btnTabPasses.backgroundTintList = ColorStateList.valueOf(crimson)
                 binding.btnTabPasses.setTextColor(white)
-                binding.btnTabLogs.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                binding.btnTabLogs.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
                 binding.btnTabLogs.setTextColor(textSecondary)
 
                 binding.rvAdminPasses.visibility = View.VISIBLE
@@ -90,35 +93,58 @@ class AdminDashboardFragment : Fragment() {
         binding.adminProgressBar.visibility =
             if (binding.adminSwipeRefresh.isRefreshing) View.GONE else View.VISIBLE
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val api = ApiClient.getService(requireContext())
 
-                val statsDeferred = async { api.getStats() }
-                val passesDeferred = async { api.getPasses() }
-                val logsDeferred = async { api.getAccessLogs() }
+                supervisorScope {
+                    val statsResult = async { runCatching { api.getStats() } }
+                    val passesResult = async {
+                        runCatching { api.getTodayPasses(fromDate = "2020-01-01T00:00:00") }
+                    }
+                    val logsResult = async { runCatching { api.getAdminLogs() } }
 
-                val stats = statsDeferred.await()
-                val passes = passesDeferred.await()
-                val logs = logsDeferred.await()
+                    statsResult.await().onSuccess { stats ->
+                        if (_binding != null) {
+                            binding.tvStatInsideCount.text = stats.vehiclesInside.toString()
+                            binding.tvStatVisitsCount.text = stats.totalVisited.toString()
+                            binding.tvStatPassesCount.text = stats.totalPasses.toString()
+                        }
+                    }.onFailure { err ->
+                        context?.let {
+                            Toast.makeText(it, "Stats error: ${err.localizedMessage}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
 
-                // Update Stats
-                binding.tvStatInsideCount.text = stats.totalInsideToday.toString()
-                binding.tvStatVisitsCount.text = stats.totalVisitsToday.toString()
-                binding.tvStatPassesCount.text = stats.passesCreatedToday.toString()
+                    passesResult.await().onSuccess { passes ->
+                        passesAdapter.submitList(passes)
+                    }.onFailure { err ->
+                        context?.let {
+                            Toast.makeText(it, "Passes error: ${err.localizedMessage}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
 
-                // Update Lists
-                passesAdapter.submitList(passes)
-                logsAdapter.submitList(logs)
+                    logsResult.await().onSuccess { logs ->
+                        logsAdapter.submitList(logs)
+                    }.onFailure { err ->
+                        context?.let {
+                            Toast.makeText(it, "Logs error: ${err.localizedMessage}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             } catch (e: Exception) {
-                Toast.makeText(
-                    requireContext(),
-                    "Failed to refresh admin data: ${e.localizedMessage}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                context?.let {
+                    Toast.makeText(
+                        it,
+                        "Failed to refresh admin data: ${e.localizedMessage}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } finally {
-                binding.adminProgressBar.visibility = View.GONE
-                binding.adminSwipeRefresh.isRefreshing = false
+                if (_binding != null) {
+                    binding.adminProgressBar.visibility = View.GONE
+                    binding.adminSwipeRefresh.isRefreshing = false
+                }
             }
         }
     }

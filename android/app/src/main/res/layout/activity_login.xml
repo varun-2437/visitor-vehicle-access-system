@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/loginRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_screen"
+    android:clipToPadding="false"
     android:fillViewport="true">
 
     <LinearLayout
@@ -13,12 +15,16 @@
 
         <!-- Top Header Hero with Crimson Gradient -->
         <LinearLayout
+            android:id="@+id/heroHeader"
             android:layout_width="match_parent"
-            android:layout_height="220dp"
+            android:layout_height="wrap_content"
+            android:minHeight="220dp"
             android:background="@drawable/bg_crimson_gradient"
             android:gravity="center"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:paddingHorizontal="24dp"
+            android:paddingTop="32dp"
+            android:paddingBottom="48dp">
 
             <TextView
                 android:layout_width="wrap_content"
