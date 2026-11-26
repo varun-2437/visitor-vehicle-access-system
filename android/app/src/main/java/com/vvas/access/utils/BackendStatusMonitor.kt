@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import android.widget.TextView
+import com.vvas.access.data.api.SupabaseConfig
 import com.vvas.access.data.storage.SessionManager
 import java.net.HttpURLConnection
 import java.net.URL
@@ -42,12 +43,18 @@ class BackendStatusMonitor(
 
     fun checkNow() {
         val baseUrl = SessionManager(statusView.context).serverUrl.trimEnd('/')
+        val isSupabase = baseUrl.contains("supabase.co")
         executor.execute {
             val isActive = try {
-                val conn = (URL("$baseUrl/").openConnection() as HttpURLConnection).apply {
+                val targetUrl = if (isSupabase) "$baseUrl/rest/v1/" else "$baseUrl/"
+                val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
                     connectTimeout = 3000
                     readTimeout = 3000
+                    if (isSupabase) {
+                        setRequestProperty("apikey", SupabaseConfig.SUPABASE_ANON_KEY)
+                        setRequestProperty("Authorization", "Bearer ${SupabaseConfig.SUPABASE_ANON_KEY}")
+                    }
                 }
                 val code = conn.responseCode
                 conn.disconnect()
@@ -56,12 +63,13 @@ class BackendStatusMonitor(
                 false
             }
 
+            val label = if (isSupabase) "Supabase" else "Backend"
             handler.post {
                 if (isActive) {
-                    statusView.text = "● Backend: Active"
+                    statusView.text = "● $label: Active"
                     statusView.setTextColor(Color.parseColor("#86EFAC"))
                 } else {
-                    statusView.text = "● Backend: Offline"
+                    statusView.text = "● $label: Offline"
                     statusView.setTextColor(Color.parseColor("#FCA5A5"))
                 }
             }
