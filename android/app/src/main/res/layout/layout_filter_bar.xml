@@ -6,7 +6,7 @@
     android:paddingHorizontal="16dp"
     android:paddingBottom="8dp">
 
-    <!-- Search + Sort Row -->
+    <!-- Single Clean Row: Search Input + Unified Filter Option -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -19,7 +19,9 @@
             android:layout_height="40dp"
             android:layout_weight="1"
             android:background="@drawable/bg_input_field"
-            android:hint="🔍 Search plate, visitor, or #VP ID..."
+            android:drawableStart="@drawable/ic_search"
+            android:drawablePadding="8dp"
+            android:hint="Search plate, visitor, or #VP ID..."
             android:imeOptions="actionSearch"
             android:inputType="text"
             android:maxLines="1"
@@ -28,8 +30,8 @@
             android:textColorHint="@color/text_muted"
             android:textSize="12sp" />
 
-        <TextView
-            android:id="@+id/btnSortOrder"
+        <LinearLayout
+            android:id="@+id/btnOpenFilters"
             android:layout_width="wrap_content"
             android:layout_height="40dp"
             android:layout_marginStart="8dp"
@@ -37,242 +39,27 @@
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
-            android:paddingHorizontal="12dp"
-            android:text="↓ Newest"
-            android:textColor="@color/text_primary"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp">
 
-    <!-- Date Presets Row -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            <ImageView
+                android:id="@+id/ivFilterIcon"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:contentDescription="Filters"
+                android:src="@drawable/ic_filter" />
 
             <TextView
+                android:id="@+id/tvFilterSummary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
-                android:text="📅"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/chipDateAll"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_active"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="All Time"
-                android:textColor="#FFFFFF"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipDateToday"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Today"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipDateYesterday"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Yesterday"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipDateLast7"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Last 7 Days"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
+                android:layout_marginStart="6dp"
+                android:singleLine="true"
+                android:text="Filters"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp"
                 android:textStyle="bold" />
         </LinearLayout>
-    </HorizontalScrollView>
+    </LinearLayout>
 
-    <!-- Status Chips (Shown when viewing Passes) -->
-    <HorizontalScrollView
-        android:id="@+id/scrollStatusChips"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/chipStatusAll"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_active"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="All Status"
-                android:textColor="#FFFFFF"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipStatusInCampus"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="In Campus"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipStatusNotInside"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Not Inside"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipStatusExited"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Exited"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipStatusExpired"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Expired"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-    </HorizontalScrollView>
-
-    <!-- Action Chips (Shown when viewing Access Logs) -->
-    <HorizontalScrollView
-        android:id="@+id/scrollActionChips"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:scrollbars="none"
-        android:visibility="gone">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/chipActionAll"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_active"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="All Actions"
-                android:textColor="#FFFFFF"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipActionEntry"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Entry Only"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/chipActionExit"
-                android:layout_width="wrap_content"
-                android:layout_height="28dp"
-                android:background="@drawable/bg_chip_inactive"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:text="Exit Only"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-    </HorizontalScrollView>
 </LinearLayout>

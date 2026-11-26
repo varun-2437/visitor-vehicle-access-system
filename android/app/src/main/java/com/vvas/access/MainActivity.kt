@@ -91,10 +91,12 @@ class MainActivity : AppCompatActivity() {
             binding.btnTopCamera.setOnClickListener {
                 showingCameraFeed = !showingCameraFeed
                 if (showingCameraFeed) {
-                    binding.btnTopCamera.text = "← Back"
+                    binding.ivTopCameraIcon.setImageResource(R.drawable.ic_arrow_back)
+                    binding.tvTopCameraLabel.text = "Back"
                     replaceFragment(LiveCameraStreamFragment())
                 } else {
-                    binding.btnTopCamera.text = "📡 Cam"
+                    binding.ivTopCameraIcon.setImageResource(R.drawable.ic_videocam)
+                    binding.tvTopCameraLabel.text = "Cam"
                     loadRoleFragment()
                 }
             }

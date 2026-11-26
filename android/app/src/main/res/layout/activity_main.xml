@@ -7,101 +7,160 @@
     android:background="@color/bg_screen"
     android:orientation="vertical">
 
-    <!-- Top App Bar with Crimson Brand Color -->
+    <!-- Clean Two-Row Top App Bar with Vector Icons -->
     <LinearLayout
         android:id="@+id/topAppBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="64dp"
         android:background="@drawable/bg_crimson_gradient"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp">
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🚗 VVAS"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
+        <!-- Row 1: Brand + DB Status Pill on left, Action Buttons on right -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:contentDescription="VVAS Logo"
+                android:src="@drawable/ic_car_brand" />
 
             <TextView
-                android:id="@+id/tvTopUserName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="Varun M"
+                android:layout_marginStart="6dp"
+                android:text="VVAS"
                 android:textColor="@color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvTopUserRole"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="RESIDENT"
-                android:textColor="#FEE2E2"
-                android:textSize="10sp"
+                android:textSize="18sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvBackendStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="● Backend: Checking..."
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_status_pill_bar"
+                android:maxLines="1"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:singleLine="true"
+                android:text="● Checking..."
                 android:textColor="#FDE68A"
                 android:textSize="10sp"
                 android:textStyle="bold" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <!-- Live ANPR Camera Feed Shortcut (Guard & Admin only) -->
+            <LinearLayout
+                android:id="@+id/btnTopCamera"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_top_pill_btn"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/ivTopCameraIcon"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:contentDescription="Camera"
+                    android:src="@drawable/ic_videocam" />
+
+                <TextView
+                    android:id="@+id/tvTopCameraLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:singleLine="true"
+                    android:text="Cam"
+                    android:textColor="@color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Logout Pill Button -->
+            <LinearLayout
+                android:id="@+id/btnTopLogout"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_top_pill_btn"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
+
+                <ImageView
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:contentDescription="Logout"
+                    android:src="@drawable/ic_logout" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:singleLine="true"
+                    android:text="@string/logout_btn"
+                    android:textColor="@color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Live ANPR Camera Feed Shortcut (Guard & Admin only) -->
-        <Button
-            android:id="@+id/btnTopCamera"
-            style="@style/Widget.Material3.Button.TonalButton"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginEnd="6dp"
-            android:backgroundTint="#33FFFFFF"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="10dp"
-            android:text="📡 Cam"
-            android:textColor="@color/white"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
+        <!-- Row 2: Full User Name on left, Role & Version on right -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <!-- Logout Button -->
-        <Button
-            android:id="@+id/btnTopLogout"
-            style="@style/Widget.Material3.Button.TonalButton"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:backgroundTint="#4DFFFFFF"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="14dp"
-            android:text="@string/logout_btn"
-            android:textColor="@color/white"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tvTopUserName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="System Administrator"
+                android:textColor="@color/white"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvTopUserRole"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:singleLine="true"
+                android:text="ADMIN • v1.8.0"
+                android:textColor="#FEE2E2"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
 
-    <!-- Main Fragment Container -->
+    <!-- Dynamic Role Fragment Container -->
     <FrameLayout
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
+
 </LinearLayout>

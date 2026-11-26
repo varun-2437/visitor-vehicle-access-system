@@ -1,9 +1,13 @@
 package com.vvas.access.utils
 
+import android.app.AlertDialog
 import android.graphics.Color
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.vvas.access.R
@@ -25,18 +29,17 @@ class PassFilterController(
         private set
     var newestFirst: Boolean = true
         private set
+    private var isLogsMode: Boolean = false
 
     init {
         setupSearch()
-        setupSortToggle()
-        setupDateChips()
-        setupStatusChips()
-        setupActionChips()
+        setupUnifiedFilterButton()
+        updateFilterButtonLabel()
     }
 
     fun setLogsMode(isLogs: Boolean) {
-        binding.scrollStatusChips.visibility = if (isLogs) View.GONE else View.VISIBLE
-        binding.scrollActionChips.visibility = if (isLogs) View.VISIBLE else View.GONE
+        isLogsMode = isLogs
+        updateFilterButtonLabel()
     }
 
     private fun setupSearch() {
@@ -50,76 +53,147 @@ class PassFilterController(
         })
     }
 
-    private fun setupSortToggle() {
-        binding.btnSortOrder.setOnClickListener {
-            newestFirst = !newestFirst
-            binding.btnSortOrder.text = if (newestFirst) "↓ Newest" else "↑ Oldest"
-            onFilterChanged()
+    private fun setupUnifiedFilterButton() {
+        binding.btnOpenFilters.setOnClickListener {
+            showUnifiedFilterDialog()
         }
     }
 
-    private fun updateChipGroup(selected: TextView, group: List<TextView>) {
+    private fun showUnifiedFilterDialog() {
         val ctx = binding.root.context
-        val inactiveColor = ContextCompat.getColor(ctx, R.color.text_secondary)
-        group.forEach { chip ->
-            if (chip == selected) {
-                chip.setBackgroundResource(R.drawable.bg_chip_active)
-                chip.setTextColor(Color.WHITE)
-            } else {
-                chip.setBackgroundResource(R.drawable.bg_chip_inactive)
-                chip.setTextColor(inactiveColor)
-            }
-        }
-    }
+        val pad = (16 * ctx.resources.displayMetrics.density).toInt()
+        val smallPad = (8 * ctx.resources.displayMetrics.density).toInt()
 
-    private fun setupDateChips() {
-        val chips = listOf(
-            binding.chipDateAll to DatePreset.ALL,
-            binding.chipDateToday to DatePreset.TODAY,
-            binding.chipDateYesterday to DatePreset.YESTERDAY,
-            binding.chipDateLast7 to DatePreset.LAST_7_DAYS
+        val container = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, smallPad, pad, smallPad)
+        }
+
+        fun addSectionTitle(title: String) {
+            val tv = TextView(ctx).apply {
+                text = title
+                textSize = 12f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTextColor(ContextCompat.getColor(ctx, R.color.primary_crimson))
+                setPadding(0, smallPad, 0, smallPad / 2)
+            }
+            container.addView(tv)
+        }
+
+        // 1. Date Range
+        addSectionTitle("Date Range")
+        val dateOptions = listOf(
+            DatePreset.ALL to "All Time",
+            DatePreset.TODAY to "Today",
+            DatePreset.YESTERDAY to "Yesterday",
+            DatePreset.LAST_7_DAYS to "Last 7 Days"
         )
-        val views = chips.map { it.first }
-        chips.forEach { (view, preset) ->
-            view.setOnClickListener {
-                datePreset = preset
-                updateChipGroup(view, views)
+        val dateGroup = RadioGroup(ctx)
+        dateOptions.forEachIndexed { idx, (preset, label) ->
+            val rb = RadioButton(ctx).apply {
+                id = 1000 + idx
+                text = label
+                isChecked = (preset == datePreset)
+                tag = preset
+            }
+            dateGroup.addView(rb)
+        }
+        container.addView(dateGroup)
+
+        // 2. Status or Action
+        addSectionTitle(if (isLogsMode) "Gate Action" else "Vehicle Status")
+        val secondOptions = if (isLogsMode) {
+            listOf("all" to "All Actions", "entry" to "Entry Only", "exit" to "Exit Only")
+        } else {
+            listOf(
+                "all" to "All Status",
+                "in_campus" to "In Campus",
+                "not_inside" to "Not Inside",
+                "exited" to "Exited",
+                "expired" to "Expired"
+            )
+        }
+        val currentSecond = if (isLogsMode) actionFilter else statusFilter
+        val secondGroup = RadioGroup(ctx)
+        secondOptions.forEachIndexed { idx, (value, label) ->
+            val rb = RadioButton(ctx).apply {
+                id = 2000 + idx
+                text = label
+                isChecked = (value == currentSecond)
+                tag = value
+            }
+            secondGroup.addView(rb)
+        }
+        container.addView(secondGroup)
+
+        // 3. Sort Order
+        addSectionTitle("Sort Order")
+        val sortGroup = RadioGroup(ctx)
+        val rbNewest = RadioButton(ctx).apply {
+            id = 3000
+            text = "Newest First"
+            isChecked = newestFirst
+        }
+        val rbOldest = RadioButton(ctx).apply {
+            id = 3001
+            text = "Oldest First"
+            isChecked = !newestFirst
+        }
+        sortGroup.addView(rbNewest)
+        sortGroup.addView(rbOldest)
+        container.addView(sortGroup)
+
+        val scroll = ScrollView(ctx).apply { addView(container) }
+
+        AlertDialog.Builder(ctx)
+            .setTitle("Filter & Sort")
+            .setView(scroll)
+            .setNeutralButton("Reset") { _, _ ->
+                datePreset = DatePreset.ALL
+                statusFilter = "all"
+                actionFilter = "all"
+                newestFirst = true
+                updateFilterButtonLabel()
                 onFilterChanged()
             }
-        }
-    }
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Apply") { _, _ ->
+                val selectedDateRb = dateGroup.findViewById<RadioButton>(dateGroup.checkedRadioButtonId)
+                datePreset = (selectedDateRb?.tag as? DatePreset) ?: DatePreset.ALL
 
-    private fun setupStatusChips() {
-        val chips = listOf(
-            binding.chipStatusAll to "all",
-            binding.chipStatusInCampus to "in_campus",
-            binding.chipStatusNotInside to "not_inside",
-            binding.chipStatusExited to "exited",
-            binding.chipStatusExpired to "expired"
-        )
-        val views = chips.map { it.first }
-        chips.forEach { (view, status) ->
-            view.setOnClickListener {
-                statusFilter = status
-                updateChipGroup(view, views)
+                val selectedSecondRb = secondGroup.findViewById<RadioButton>(secondGroup.checkedRadioButtonId)
+                val secondVal = (selectedSecondRb?.tag as? String) ?: "all"
+                if (isLogsMode) {
+                    actionFilter = secondVal
+                } else {
+                    statusFilter = secondVal
+                }
+
+                newestFirst = (sortGroup.checkedRadioButtonId == 3000)
+                updateFilterButtonLabel()
                 onFilterChanged()
             }
-        }
+            .show()
     }
 
-    private fun setupActionChips() {
-        val chips = listOf(
-            binding.chipActionAll to "all",
-            binding.chipActionEntry to "entry",
-            binding.chipActionExit to "exit"
-        )
-        val views = chips.map { it.first }
-        chips.forEach { (view, action) ->
-            view.setOnClickListener {
-                actionFilter = action
-                updateChipGroup(view, views)
-                onFilterChanged()
-            }
+    private fun updateFilterButtonLabel() {
+        var activeCount = 0
+        if (datePreset != DatePreset.ALL) activeCount++
+        if (isLogsMode && actionFilter != "all") activeCount++
+        if (!isLogsMode && statusFilter != "all") activeCount++
+        if (!newestFirst) activeCount++
+
+        val ctx = binding.root.context
+        if (activeCount > 0) {
+            binding.btnOpenFilters.setBackgroundResource(R.drawable.bg_chip_active)
+            binding.tvFilterSummary.setTextColor(Color.WHITE)
+            binding.ivFilterIcon.setColorFilter(Color.WHITE)
+            binding.tvFilterSummary.text = "Filters ($activeCount)"
+        } else {
+            binding.btnOpenFilters.setBackgroundResource(R.drawable.bg_chip_inactive)
+            binding.tvFilterSummary.setTextColor(ContextCompat.getColor(ctx, R.color.text_primary))
+            binding.ivFilterIcon.clearColorFilter()
+            binding.tvFilterSummary.text = "Filters"
         }
     }
 
