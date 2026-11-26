@@ -28,6 +28,37 @@ data class UpdateQrImageRequest(
     @SerializedName("qr_image_path") val qrImagePath: String
 )
 
+data class VerifyQrRequest(
+    @SerializedName("qr_token") val qrToken: String,
+    val action: String? = null
+)
+
+data class ManualEntryRequest(
+    @SerializedName("visitor_name") val visitorName: String,
+    @SerializedName("vehicle_number") val vehicleNumber: String?,
+    val purpose: String? = "Manual Gate Entry",
+    val action: String = "entry"
+)
+
+data class HardwareApiKey(
+    val id: Int,
+    val description: String,
+    @SerializedName("key_prefix") val keyPrefix: String? = "vvas_hw",
+    @SerializedName("is_active") val isActive: Boolean = true,
+    @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class CreateApiKeyRequest(
+    val description: String
+)
+
+data class CreateApiKeyResponse(
+    val id: Int,
+    val description: String,
+    @SerializedName("api_key") val apiKey: String,
+    val message: String = ""
+)
+
 data class CampusStats(
     @SerializedName("vehicles_inside") val vehiclesInside: Int = 0,
     @SerializedName("total_visited") val totalVisited: Int = 0,

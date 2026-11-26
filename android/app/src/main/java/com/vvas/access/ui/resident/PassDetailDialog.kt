@@ -99,10 +99,11 @@ class PassDetailDialog(
             }
         }
 
-        // Only Admin (with callback) can mark an in-campus vehicle as exited from the dialog
-        val isAdmin = SessionManager(context).userRole == "admin"
+        // Admin & Guard (with callback) can mark an in-campus vehicle as exited from the dialog
+        val userRole = SessionManager(context).userRole
+        val canMarkExit = userRole == "admin" || userRole == "guard"
         val isInside = normalizedStatus == "in_campus" || normalizedStatus == "used"
-        if (isAdmin && isInside && onExitMarked != null) {
+        if (canMarkExit && isInside && onExitMarked != null) {
             binding.btnMarkExitDialog.visibility = View.VISIBLE
             binding.btnMarkExitDialog.setOnClickListener {
                 performMarkExit()

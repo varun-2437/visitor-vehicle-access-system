@@ -42,6 +42,54 @@ interface ApiService {
         @Path("pass_id") passId: Int
     ): QRVerifyResponse
 
+    @POST("api/qr/verify")
+    suspend fun verifyQr(
+        @Body request: VerifyQrRequest
+    ): QRVerifyResponse
+
+    @POST("api/qr/manual-entry")
+    suspend fun manualEntry(
+        @Body request: ManualEntryRequest
+    ): QRVerifyResponse
+
+    // ── Admin User & Key Management ──
+    @GET("api/admin/users")
+    suspend fun getAdminUsers(): List<User>
+
+    @POST("api/auth/register")
+    suspend fun createAdminUser(
+        @Body request: RegisterRequest
+    ): okhttp3.ResponseBody
+
+    @PUT("api/admin/users/{user_id}/approve")
+    suspend fun approveUser(
+        @Path("user_id") userId: Int
+    ): User
+
+    @PUT("api/admin/users/{user_id}/reject")
+    suspend fun rejectUser(
+        @Path("user_id") userId: Int,
+        @Body request: RejectUserRequest
+    ): User
+
+    @DELETE("api/admin/users/{user_id}")
+    suspend fun deleteUser(
+        @Path("user_id") userId: Int
+    ): okhttp3.ResponseBody
+
+    @GET("api/admin/api-keys")
+    suspend fun getApiKeys(): List<HardwareApiKey>
+
+    @POST("api/admin/api-keys")
+    suspend fun createApiKey(
+        @Body request: CreateApiKeyRequest
+    ): CreateApiKeyResponse
+
+    @DELETE("api/admin/api-keys/{key_id}")
+    suspend fun revokeApiKey(
+        @Path("key_id") keyId: Int
+    ): okhttp3.ResponseBody
+
     // ── Dashboard Statistics ──
     @GET("api/qr/stats")
     suspend fun getStats(

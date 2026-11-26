@@ -163,4 +163,23 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <!-- Clean Top Divider for Bottom Navigation -->
+    <View
+        android:id="@+id/bottomNavDivider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E2E8F0" />
+
+    <!-- Bottom Navigation Bar (Role-Specific Options) -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_card"
+        app:itemActiveIndicatorStyle="@null"
+        app:itemIconSize="22dp"
+        app:itemIconTint="@color/bottom_nav_selector"
+        app:itemTextColor="@color/bottom_nav_selector"
+        app:labelVisibilityMode="labeled" />
+
 </LinearLayout>

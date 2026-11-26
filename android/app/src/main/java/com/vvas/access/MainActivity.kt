@@ -10,10 +10,16 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import com.vvas.access.data.storage.SessionManager
 import com.vvas.access.databinding.ActivityMainBinding
+import com.vvas.access.ui.admin.AdminApiKeysFragment
 import com.vvas.access.ui.admin.AdminDashboardFragment
+import com.vvas.access.ui.admin.AdminUsersFragment
 import com.vvas.access.ui.auth.LoginActivity
 import com.vvas.access.ui.camera.LiveCameraStreamFragment
+import com.vvas.access.ui.common.AccountProfileFragment
 import com.vvas.access.ui.guard.GuardDashboardFragment
+import com.vvas.access.ui.guard.GuardGateCheckFragment
+import com.vvas.access.ui.resident.CreatePassBottomSheet
+import com.vvas.access.ui.resident.PassDetailDialog
 import com.vvas.access.ui.resident.ResidentDashboardFragment
 import com.vvas.access.utils.BackendStatusMonitor
 
@@ -21,14 +27,12 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var sessionManager: SessionManager
-    private var showingCameraFeed = false
     private var backendStatusMonitor: BackendStatusMonitor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sessionManager = SessionManager(this)
 
-        // Ensure user is authenticated
         if (!sessionManager.isLoggedIn) {
             redirectToLogin()
             return
@@ -44,7 +48,7 @@ class MainActivity : AppCompatActivity() {
 
         applyWindowInsets()
         setupTopBar()
-        loadRoleFragment()
+        setupBottomNavigation()
         backendStatusMonitor = BackendStatusMonitor(binding.tvBackendStatus)
     }
 
@@ -74,7 +78,8 @@ class MainActivity : AppCompatActivity() {
                 initialRight + bars.right,
                 initialBottom
             )
-            binding.fragmentContainer.setPadding(bars.left, 0, bars.right, bars.bottom)
+            binding.fragmentContainer.setPadding(bars.left, 0, bars.right, 0)
+            binding.bottomNav.setPadding(bars.left, 0, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
         }
     }
@@ -89,16 +94,7 @@ class MainActivity : AppCompatActivity() {
         if (role == "guard" || role == "admin") {
             binding.btnTopCamera.visibility = View.VISIBLE
             binding.btnTopCamera.setOnClickListener {
-                showingCameraFeed = !showingCameraFeed
-                if (showingCameraFeed) {
-                    binding.ivTopCameraIcon.setImageResource(R.drawable.ic_arrow_back)
-                    binding.tvTopCameraLabel.text = "Back"
-                    replaceFragment(LiveCameraStreamFragment())
-                } else {
-                    binding.ivTopCameraIcon.setImageResource(R.drawable.ic_videocam)
-                    binding.tvTopCameraLabel.text = "Cam"
-                    loadRoleFragment()
-                }
+                binding.bottomNav.selectedItemId = R.id.nav_camera_feed
             }
         } else {
             binding.btnTopCamera.visibility = View.GONE
@@ -110,15 +106,78 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadRoleFragment() {
-        showingCameraFeed = false
-        val targetFragment: Fragment = when (sessionManager.userRole) {
-            "admin" -> AdminDashboardFragment()
-            "guard" -> GuardDashboardFragment()
-            "camera" -> LiveCameraStreamFragment()
-            else -> ResidentDashboardFragment()
+    private fun setupBottomNavigation() {
+        val role = sessionManager.userRole
+        binding.bottomNav.menu.clear()
+
+        when (role) {
+            "admin" -> {
+                binding.bottomNav.inflateMenu(R.menu.bottom_nav_admin)
+                replaceFragment(AdminDashboardFragment())
+                binding.bottomNav.selectedItemId = R.id.nav_admin_dashboard
+            }
+            "guard" -> {
+                binding.bottomNav.inflateMenu(R.menu.bottom_nav_guard)
+                replaceFragment(GuardDashboardFragment())
+                binding.bottomNav.selectedItemId = R.id.nav_guard_terminal
+            }
+            "camera" -> {
+                binding.bottomNav.inflateMenu(R.menu.bottom_nav_camera)
+                replaceFragment(LiveCameraStreamFragment())
+                binding.bottomNav.selectedItemId = R.id.nav_camera_feed
+            }
+            else -> {
+                binding.bottomNav.inflateMenu(R.menu.bottom_nav_resident)
+                replaceFragment(ResidentDashboardFragment())
+                binding.bottomNav.selectedItemId = R.id.nav_resident_passes
+            }
         }
-        replaceFragment(targetFragment)
+
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_admin_dashboard -> {
+                    replaceFragment(AdminDashboardFragment())
+                    true
+                }
+                R.id.nav_admin_users -> {
+                    replaceFragment(AdminUsersFragment())
+                    true
+                }
+                R.id.nav_admin_keys -> {
+                    replaceFragment(AdminApiKeysFragment())
+                    true
+                }
+                R.id.nav_guard_terminal -> {
+                    replaceFragment(GuardDashboardFragment())
+                    true
+                }
+                R.id.nav_guard_gate_check -> {
+                    replaceFragment(GuardGateCheckFragment())
+                    true
+                }
+                R.id.nav_resident_passes -> {
+                    replaceFragment(ResidentDashboardFragment())
+                    true
+                }
+                R.id.nav_resident_create -> {
+                    val sheet = CreatePassBottomSheet { newPass ->
+                        replaceFragment(ResidentDashboardFragment())
+                        PassDetailDialog(this, newPass).show()
+                    }
+                    sheet.show(supportFragmentManager, "CreatePassBottomSheetNav")
+                    false // Keep "My Passes" selected after modal opens
+                }
+                R.id.nav_camera_feed -> {
+                    replaceFragment(LiveCameraStreamFragment())
+                    true
+                }
+                R.id.nav_account_profile -> {
+                    replaceFragment(AccountProfileFragment())
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     private fun replaceFragment(fragment: Fragment) {

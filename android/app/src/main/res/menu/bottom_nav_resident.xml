@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_resident_passes"
+        android:icon="@drawable/ic_list_alt"
+        android:title="My Passes" />
+    <item
+        android:id="@+id/nav_resident_create"
+        android:icon="@drawable/ic_add_circle"
+        android:title="New Pass" />
+    <item
+        android:id="@+id/nav_account_profile"
+        android:icon="@drawable/ic_person"
+        android:title="Account" />
+</menu>

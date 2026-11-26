@@ -17,6 +17,7 @@ import com.vvas.access.data.model.VisitorPass
 import com.vvas.access.databinding.FragmentAdminDashboardBinding
 import com.vvas.access.ui.resident.PassDetailDialog
 import com.vvas.access.ui.resident.PassesAdapter
+import com.vvas.access.utils.DatePreset
 import com.vvas.access.utils.PassFilterController
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -50,8 +51,51 @@ class AdminDashboardFragment : Fragment() {
         setupRecyclerViews()
         setupFilterBar()
         setupTabs()
+        setupStatCardClicks()
         binding.adminSwipeRefresh.setOnRefreshListener { loadDashboardData() }
         loadDashboardData()
+    }
+
+    private fun setupStatCardClicks() {
+        binding.cardStatInside.setOnClickListener {
+            switchTab(showLogs = false)
+            filterController.applyPreset(DatePreset.ALL, "in_campus")
+            Toast.makeText(requireContext(), "Showing vehicles inside campus", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardStatVisits.setOnClickListener {
+            switchTab(showLogs = true)
+            filterController.applyLogPreset(DatePreset.TODAY, "entry")
+            Toast.makeText(requireContext(), "Showing today's vehicle visits", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardStatPasses.setOnClickListener {
+            switchTab(showLogs = false)
+            filterController.applyPreset(DatePreset.TODAY, "all")
+            Toast.makeText(requireContext(), "Showing passes created today", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun switchTab(showLogs: Boolean) {
+        val textSecondary = ContextCompat.getColor(requireContext(), R.color.text_secondary)
+        showingLogsTab = showLogs
+        filterController.setLogsMode(showLogs)
+        if (showLogs) {
+            binding.btnTabLogs.setBackgroundResource(R.drawable.bg_tab_active)
+            binding.btnTabLogs.setTextColor(Color.WHITE)
+            binding.btnTabPasses.setBackgroundColor(Color.TRANSPARENT)
+            binding.btnTabPasses.setTextColor(textSecondary)
+
+            binding.rvAdminLogs.visibility = View.VISIBLE
+            binding.rvAdminPasses.visibility = View.GONE
+        } else {
+            binding.btnTabPasses.setBackgroundResource(R.drawable.bg_tab_active)
+            binding.btnTabPasses.setTextColor(Color.WHITE)
+            binding.btnTabLogs.setBackgroundColor(Color.TRANSPARENT)
+            binding.btnTabLogs.setTextColor(textSecondary)
+
+            binding.rvAdminPasses.visibility = View.VISIBLE
+            binding.rvAdminLogs.visibility = View.GONE
+        }
+        applyFilters()
     }
 
     private fun setupRecyclerViews() {
@@ -75,33 +119,8 @@ class AdminDashboardFragment : Fragment() {
     }
 
     private fun setupTabs() {
-        val textSecondary = ContextCompat.getColor(requireContext(), R.color.text_secondary)
-
-        fun updateTabs(showLogs: Boolean) {
-            showingLogsTab = showLogs
-            filterController.setLogsMode(showLogs)
-            if (showLogs) {
-                binding.btnTabLogs.setBackgroundResource(R.drawable.bg_tab_active)
-                binding.btnTabLogs.setTextColor(Color.WHITE)
-                binding.btnTabPasses.setBackgroundColor(Color.TRANSPARENT)
-                binding.btnTabPasses.setTextColor(textSecondary)
-
-                binding.rvAdminLogs.visibility = View.VISIBLE
-                binding.rvAdminPasses.visibility = View.GONE
-            } else {
-                binding.btnTabPasses.setBackgroundResource(R.drawable.bg_tab_active)
-                binding.btnTabPasses.setTextColor(Color.WHITE)
-                binding.btnTabLogs.setBackgroundColor(Color.TRANSPARENT)
-                binding.btnTabLogs.setTextColor(textSecondary)
-
-                binding.rvAdminPasses.visibility = View.VISIBLE
-                binding.rvAdminLogs.visibility = View.GONE
-            }
-            applyFilters()
-        }
-
-        binding.btnTabPasses.setOnClickListener { updateTabs(false) }
-        binding.btnTabLogs.setOnClickListener { updateTabs(true) }
+        binding.btnTabPasses.setOnClickListener { switchTab(false) }
+        binding.btnTabLogs.setOnClickListener { switchTab(true) }
     }
 
     private fun applyFilters() {

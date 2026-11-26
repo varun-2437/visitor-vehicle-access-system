@@ -18,6 +18,7 @@ import com.vvas.access.databinding.FragmentGuardDashboardBinding
 import com.vvas.access.ui.admin.AccessLogsAdapter
 import com.vvas.access.ui.resident.PassDetailDialog
 import com.vvas.access.ui.resident.PassesAdapter
+import com.vvas.access.utils.DatePreset
 import com.vvas.access.utils.PassFilterController
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -51,13 +52,16 @@ class GuardDashboardFragment : Fragment() {
         setupRecyclerViews()
         setupFilterBar()
         setupTabs()
+        setupStatCardClicks()
         binding.guardSwipeRefresh.setOnRefreshListener { loadGuardData() }
         loadGuardData()
     }
 
     private fun setupRecyclerViews() {
         passesAdapter = PassesAdapter { pass ->
-            PassDetailDialog(requireContext(), pass).show()
+            PassDetailDialog(requireContext(), pass) {
+                loadGuardData()
+            }.show()
         }
         binding.rvGuardPasses.layoutManager = LinearLayoutManager(requireContext())
         binding.rvGuardPasses.adapter = passesAdapter
@@ -73,34 +77,52 @@ class GuardDashboardFragment : Fragment() {
         }
     }
 
-    private fun setupTabs() {
+    private fun switchTab(showLogs: Boolean) {
+        if (_binding == null) return
         val textSecondary = ContextCompat.getColor(requireContext(), R.color.text_secondary)
+        showingLogsTab = showLogs
+        filterController.setLogsMode(showLogs)
+        if (showLogs) {
+            binding.btnGuardTabLogs.setBackgroundResource(R.drawable.bg_tab_active)
+            binding.btnGuardTabLogs.setTextColor(Color.WHITE)
+            binding.btnGuardTabPasses.setBackgroundColor(Color.TRANSPARENT)
+            binding.btnGuardTabPasses.setTextColor(textSecondary)
 
-        fun updateTabs(showLogs: Boolean) {
-            showingLogsTab = showLogs
-            filterController.setLogsMode(showLogs)
-            if (showLogs) {
-                binding.btnGuardTabLogs.setBackgroundResource(R.drawable.bg_tab_active)
-                binding.btnGuardTabLogs.setTextColor(Color.WHITE)
-                binding.btnGuardTabPasses.setBackgroundColor(Color.TRANSPARENT)
-                binding.btnGuardTabPasses.setTextColor(textSecondary)
+            binding.rvGuardLogs.visibility = View.VISIBLE
+            binding.rvGuardPasses.visibility = View.GONE
+        } else {
+            binding.btnGuardTabPasses.setBackgroundResource(R.drawable.bg_tab_active)
+            binding.btnGuardTabPasses.setTextColor(Color.WHITE)
+            binding.btnGuardTabLogs.setBackgroundColor(Color.TRANSPARENT)
+            binding.btnGuardTabLogs.setTextColor(textSecondary)
 
-                binding.rvGuardLogs.visibility = View.VISIBLE
-                binding.rvGuardPasses.visibility = View.GONE
-            } else {
-                binding.btnGuardTabPasses.setBackgroundResource(R.drawable.bg_tab_active)
-                binding.btnGuardTabPasses.setTextColor(Color.WHITE)
-                binding.btnGuardTabLogs.setBackgroundColor(Color.TRANSPARENT)
-                binding.btnGuardTabLogs.setTextColor(textSecondary)
-
-                binding.rvGuardPasses.visibility = View.VISIBLE
-                binding.rvGuardLogs.visibility = View.GONE
-            }
-            applyFilters()
+            binding.rvGuardPasses.visibility = View.VISIBLE
+            binding.rvGuardLogs.visibility = View.GONE
         }
+        applyFilters()
+    }
 
-        binding.btnGuardTabPasses.setOnClickListener { updateTabs(false) }
-        binding.btnGuardTabLogs.setOnClickListener { updateTabs(true) }
+    private fun setupTabs() {
+        binding.btnGuardTabPasses.setOnClickListener { switchTab(false) }
+        binding.btnGuardTabLogs.setOnClickListener { switchTab(true) }
+    }
+
+    private fun setupStatCardClicks() {
+        binding.cardGuardStatInside.setOnClickListener {
+            switchTab(false)
+            filterController.applyPreset(DatePreset.ALL, "in_campus")
+            Toast.makeText(requireContext(), "Showing vehicles currently inside campus", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardGuardStatVisits.setOnClickListener {
+            switchTab(true)
+            filterController.applyLogPreset(DatePreset.TODAY, "entry")
+            Toast.makeText(requireContext(), "Showing today's vehicle visits", Toast.LENGTH_SHORT).show()
+        }
+        binding.cardGuardStatPasses.setOnClickListener {
+            switchTab(false)
+            filterController.applyPreset(DatePreset.TODAY, "all")
+            Toast.makeText(requireContext(), "Showing passes created today", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun applyFilters() {
@@ -128,18 +150,23 @@ class GuardDashboardFragment : Fragment() {
                 val api = ApiClient.getService(requireContext())
 
                 supervisorScope {
+                    val statsResult = async { runCatching { api.getStats() } }
                     val passesResult = async { runCatching { api.getTodayPasses(allTime = true) } }
                     val logsResult = async { runCatching { api.getTodayLogs(allTime = true) } }
+
+                    statsResult.await().onSuccess { stats ->
+                        if (_binding != null) {
+                            binding.tvGuardStatInsideCount.text = stats.vehiclesInside.toString()
+                            binding.tvGuardStatVisitsCount.text = stats.totalVisited.toString()
+                            binding.tvGuardStatPassesCount.text = stats.totalPasses.toString()
+                        }
+                    }
 
                     passesResult.await().onSuccess { passes ->
                         allPasses = passes
                     }.onFailure { err ->
                         context?.let {
-                            Toast.makeText(
-                                it,
-                                "Failed to fetch passes: ${err.localizedMessage}",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(it, "Failed to fetch passes: ${err.localizedMessage}", Toast.LENGTH_SHORT).show()
                         }
                     }
 
@@ -147,22 +174,14 @@ class GuardDashboardFragment : Fragment() {
                         allLogs = logs
                     }.onFailure { err ->
                         context?.let {
-                            Toast.makeText(
-                                it,
-                                "Failed to fetch logs: ${err.localizedMessage}",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            Toast.makeText(it, "Failed to fetch logs: ${err.localizedMessage}", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
                 applyFilters()
             } catch (e: Exception) {
                 context?.let {
-                    Toast.makeText(
-                        it,
-                        "Failed to fetch guard data: ${e.localizedMessage}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(it, "Failed to fetch guard data: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                 }
             } finally {
                 if (_binding != null) {

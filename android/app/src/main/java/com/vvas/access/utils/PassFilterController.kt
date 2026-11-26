@@ -42,6 +42,20 @@ class PassFilterController(
         updateFilterButtonLabel()
     }
 
+    fun applyPreset(preset: DatePreset, status: String) {
+        datePreset = preset
+        statusFilter = status
+        updateFilterButtonLabel()
+        onFilterChanged()
+    }
+
+    fun applyLogPreset(preset: DatePreset, action: String) {
+        datePreset = preset
+        actionFilter = action
+        updateFilterButtonLabel()
+        onFilterChanged()
+    }
+
     private fun setupSearch() {
         binding.etFilterSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}

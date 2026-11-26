@@ -27,10 +27,14 @@
 
         <!-- Stat 1: Inside Campus -->
         <androidx.cardview.widget.CardView
+            android:id="@+id/cardStatInside"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="4dp"
             android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:cardBackgroundColor="@color/bg_card"
             app:cardCornerRadius="12dp"
             app:cardElevation="2dp">
@@ -73,10 +77,14 @@
 
         <!-- Stat 2: Total Visits Today -->
         <androidx.cardview.widget.CardView
+            android:id="@+id/cardStatVisits"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="4dp"
             android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:cardBackgroundColor="@color/bg_card"
             app:cardCornerRadius="12dp"
             app:cardElevation="2dp">
@@ -119,10 +127,14 @@
 
         <!-- Stat 3: Passes Created Today -->
         <androidx.cardview.widget.CardView
+            android:id="@+id/cardStatPasses"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="4dp"
             android:layout_weight="1"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:cardBackgroundColor="@color/bg_card"
             app:cardCornerRadius="12dp"
             app:cardElevation="2dp">
