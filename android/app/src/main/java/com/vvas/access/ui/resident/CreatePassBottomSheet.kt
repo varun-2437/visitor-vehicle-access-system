@@ -21,8 +21,11 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.vvas.access.R
 import com.vvas.access.data.api.ApiClient
 import com.vvas.access.data.model.CreatePassRequest
+import com.vvas.access.data.model.UpdateQrImageRequest
 import com.vvas.access.data.model.VisitorPass
 import com.vvas.access.databinding.DialogCreatePassBinding
+import com.vvas.access.utils.QRCodeGenerator
+import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -275,6 +278,21 @@ class CreatePassBottomSheet(
                     hoursValid = selectedDurationHours
                 )
                 val newPass = api.createPass(request)
+                // Generate QR PNG data URL and persist it in Supabase so Web & Print views have it too
+                val token = newPass.qrToken
+                if (!token.isNullOrBlank()) {
+                    runCatching {
+                        val qrDataUrl = withContext(Dispatchers.Default) {
+                            val bmp = QRCodeGenerator.generateQRCode(token, 320) ?: return@withContext null
+                            val baos = ByteArrayOutputStream()
+                            bmp.compress(Bitmap.CompressFormat.PNG, 100, baos)
+                            "data:image/png;base64," + Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+                        }
+                        if (qrDataUrl != null) {
+                            api.saveQrImage(UpdateQrImageRequest(newPass.id, qrDataUrl))
+                        }
+                    }
+                }
                 context?.let {
                     Toast.makeText(it, "Pass #${newPass.id} created successfully!", Toast.LENGTH_SHORT).show()
                 }

@@ -32,6 +32,11 @@ interface ApiService {
         @Body request: CreatePassRequest
     ): VisitorPass
 
+    @POST("api/qr/save-qr")
+    suspend fun saveQrImage(
+        @Body request: UpdateQrImageRequest
+    ): okhttp3.ResponseBody
+
     @POST("api/qr/passes/{pass_id}/mark-exit")
     suspend fun markPassExit(
         @Path("pass_id") passId: Int

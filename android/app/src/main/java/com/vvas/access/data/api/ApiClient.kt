@@ -28,22 +28,26 @@ object ApiClient {
                 val original = chain.request()
                 val requestBuilder = original.newBuilder()
 
-                if (baseUrl.contains("supabase.co")) {
-                    requestBuilder.addHeader("apikey", SupabaseConfig.SUPABASE_ANON_KEY)
-                    requestBuilder.addHeader("Authorization", "Bearer ${SupabaseConfig.SUPABASE_ANON_KEY}")
-                    requestBuilder.addHeader("Content-Type", "application/json")
+                val isSupabase = baseUrl.contains("supabase.co")
+                if (isSupabase) {
+                    requestBuilder.header("apikey", SupabaseConfig.SUPABASE_ANON_KEY)
+                    requestBuilder.header("Authorization", "Bearer ${SupabaseConfig.SUPABASE_ANON_KEY}")
                 } else {
                     sessionManager.authToken?.let { token ->
-                        requestBuilder.addHeader("Authorization", "Bearer $token")
+                        requestBuilder.header("Authorization", "Bearer $token")
                     }
                 }
-                requestBuilder.addHeader("Accept", "application/json")
-                requestBuilder.addHeader("User-Agent", "VVAS-Android-Client/2.0")
+                requestBuilder.header("Accept", "application/json")
+                requestBuilder.header("User-Agent", "VVAS-Android-Client/2.0")
 
-                if (baseUrl.contains("supabase.co")) {
+                if (isSupabase) {
                     val path = original.url.encodedPath
                     val jsonMediaType = "application/json; charset=utf-8".toMediaType()
-                    val currentUserId = sessionManager.currentUser?.id ?: 1
+                    val tokenUserId = sessionManager.authToken
+                        ?.removePrefix("supabase-user-")
+                        ?.removePrefix("supabase-direct-")
+                        ?.toIntOrNull()
+                    val currentUserId = tokenUserId ?: sessionManager.currentUser?.id ?: 1
                     val currentRole = sessionManager.userRole ?: "resident"
 
                     fun readBodyJson(): JSONObject {
@@ -62,20 +66,33 @@ object ApiClient {
                                 put("p_password", src.optString("password"))
                             }
                         }
+                        path.endsWith("/api/auth/me") -> {
+                            "vvas_me" to JSONObject().apply {
+                                put("p_user_id", currentUserId)
+                            }
+                        }
                         path.endsWith("/api/qr/my-passes") || path.endsWith("/api/qr/today-passes") -> {
-                            "vvas_get_passes" to JSONObject().apply {
+                            "vvas_api_get_passes" to JSONObject().apply {
                                 put("p_user_id", currentUserId)
                                 put("p_role", currentRole)
+                                put("p_all_time", true)
                             }
                         }
                         path.endsWith("/api/qr/generate") -> {
                             val src = readBodyJson()
-                            "vvas_create_pass" to JSONObject().apply {
+                            "vvas_api_create_pass" to JSONObject().apply {
                                 put("p_visitor_name", src.optString("visitor_name"))
                                 put("p_vehicle_number", src.optString("vehicle_number"))
                                 put("p_purpose", src.optString("purpose", ""))
                                 put("p_resident_id", currentUserId)
-                                put("p_duration_hours", src.optInt("duration_hours", 24))
+                                put("p_hours_valid", src.optInt("hours_valid", 24))
+                            }
+                        }
+                        path.endsWith("/api/qr/save-qr") -> {
+                            val src = readBodyJson()
+                            "vvas_update_pass_qr" to JSONObject().apply {
+                                put("p_pass_id", src.optInt("pass_id"))
+                                put("p_qr_image_path", src.optString("qr_image_path"))
                             }
                         }
                         path.contains("/api/qr/passes/") && path.endsWith("/mark-exit") -> {
@@ -86,10 +103,12 @@ object ApiClient {
                             }
                         }
                         path.endsWith("/api/qr/stats") -> {
-                            "vvas_get_stats" to JSONObject()
+                            "vvas_api_get_stats" to JSONObject()
                         }
                         path.endsWith("/api/admin/logs") || path.endsWith("/api/qr/today-logs") -> {
-                            "vvas_get_logs" to JSONObject()
+                            "vvas_api_get_logs" to JSONObject().apply {
+                                put("p_all_time", true)
+                            }
                         }
                         else -> null to null
                     }

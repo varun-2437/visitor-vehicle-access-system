@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import QRCode from "qrcode";
 import { formatDateTime, formatPassId } from "../utils/datetime";
 import {
   PrinterIcon,
@@ -13,6 +14,23 @@ import "./PrintablePassModal.css";
 export default function PrintablePassModal({ pass, onClose, hostInfo, onMarkExit }) {
   const [copied, setCopied] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [generatedQr, setGeneratedQr] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (pass?.qr_token && !pass?.qr_image_path?.startsWith("data:")) {
+      QRCode.toDataURL(pass.qr_token, { width: 320, margin: 2 })
+        .then((url) => {
+          if (!cancelled) setGeneratedQr(url);
+        })
+        .catch(() => {});
+    } else {
+      setGeneratedQr(null);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [pass?.qr_token, pass?.qr_image_path]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -36,9 +54,7 @@ export default function PrintablePassModal({ pass, onClose, hostInfo, onMarkExit
   const qrSrc =
     pass.qr_image_path?.startsWith("data:") || pass.qr_image_path?.startsWith("http")
       ? pass.qr_image_path
-      : pass.qr_image_path
-      ? `http://${window.location.hostname}:8000${pass.qr_image_path}`
-      : null;
+      : generatedQr || null;
 
   const handleDownload = () => {
     if (!qrSrc) return;

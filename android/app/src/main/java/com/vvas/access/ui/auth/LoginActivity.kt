@@ -101,11 +101,11 @@ class LoginActivity : AppCompatActivity() {
     private fun setupQuickFillButtons() {
         binding.btnQuickResident.setOnClickListener {
             binding.etUsername.setText("varun")
-            binding.etPassword.setText("resident123")
+            binding.etPassword.setText("pass123")
         }
         binding.btnQuickGuard.setOnClickListener {
             binding.etUsername.setText("guard1")
-            binding.etPassword.setText("guard123")
+            binding.etPassword.setText("pass123")
         }
         binding.btnQuickAdmin.setOnClickListener {
             binding.etUsername.setText("admin")

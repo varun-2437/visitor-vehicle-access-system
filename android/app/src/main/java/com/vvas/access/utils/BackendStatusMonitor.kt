@@ -46,7 +46,7 @@ class BackendStatusMonitor(
         val isSupabase = baseUrl.contains("supabase.co")
         executor.execute {
             val isActive = try {
-                val targetUrl = if (isSupabase) "$baseUrl/rest/v1/rpc/vvas_get_stats" else "$baseUrl/"
+                val targetUrl = if (isSupabase) "$baseUrl/rest/v1/rpc/vvas_api_get_stats" else "$baseUrl/"
                 val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
                     requestMethod = if (isSupabase) "POST" else "GET"
                     connectTimeout = 3000

@@ -23,6 +23,11 @@ data class CreatePassRequest(
     @SerializedName("hours_valid") val hoursValid: Int = 24
 )
 
+data class UpdateQrImageRequest(
+    @SerializedName("pass_id") val passId: Int,
+    @SerializedName("qr_image_path") val qrImagePath: String
+)
+
 data class CampusStats(
     @SerializedName("vehicles_inside") val vehiclesInside: Int = 0,
     @SerializedName("total_visited") val totalVisited: Int = 0,
