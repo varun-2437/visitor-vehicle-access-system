@@ -4,6 +4,7 @@ import ThemeToggle from "./ThemeToggle";
 import LiveClock from "./LiveClock";
 import OfflineBanner from "./OfflineBanner";
 import vmsLogo from "../assets/vms_logo.svg";
+import API from "../api";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../supabaseConfig";
 
 export default function Navbar() {
@@ -11,6 +12,10 @@ export default function Navbar() {
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const [dbActive, setDbActive] = useState(null);
+  const [showPwdModal, setShowPwdModal] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwdStatus, setPwdStatus] = useState({ type: "", text: "" });
+  const [pwdSaving, setPwdSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -105,11 +110,116 @@ export default function Navbar() {
         <span className="navbar-user" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <strong>{user.full_name}</strong> <span className={`badge badge-${user.role}`}>{user.role.toUpperCase()}</span>
         </span>
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={() => {
+            setPwdForm({ current: "", next: "", confirm: "" });
+            setPwdStatus({ type: "", text: "" });
+            setShowPwdModal(true);
+          }}
+        >
+          Change Password
+        </button>
         <button className="btn btn-outline btn-sm" onClick={handleLogout}>
           Logout
         </button>
       </div>
     </nav>
+
+    {showPwdModal && (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(15, 23, 42, 0.55)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "16px",
+        }}
+        onClick={() => setShowPwdModal(false)}
+      >
+        <div
+          className="panel"
+          style={{ width: "100%", maxWidth: "400px", margin: 0, padding: "22px" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 style={{ marginTop: 0, marginBottom: "12px" }}>Change Account Password</h3>
+          {pwdStatus.text && (
+            <div className={`alert ${pwdStatus.type === "error" ? "alert-error" : "alert-success"}`}>
+              {pwdStatus.text}
+            </div>
+          )}
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setPwdStatus({ type: "", text: "" });
+              if (pwdForm.next.length < 6) {
+                setPwdStatus({ type: "error", text: "New password must be at least 6 characters." });
+                return;
+              }
+              if (pwdForm.next !== pwdForm.confirm) {
+                setPwdStatus({ type: "error", text: "New passwords do not match." });
+                return;
+              }
+              setPwdSaving(true);
+              try {
+                await API.put("/api/auth/change-password", {
+                  current_password: pwdForm.current,
+                  new_password: pwdForm.next,
+                });
+                setPwdStatus({ type: "success", text: "Password updated successfully!" });
+                setTimeout(() => setShowPwdModal(false), 1000);
+              } catch (err) {
+                setPwdStatus({
+                  type: "error",
+                  text: err.response?.data?.detail || "Failed to update password.",
+                });
+              } finally {
+                setPwdSaving(false);
+              }
+            }}
+          >
+            <div className="form-group">
+              <label>Current Password</label>
+              <input
+                type="password"
+                value={pwdForm.current}
+                onChange={(e) => setPwdForm({ ...pwdForm, current: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>New Password (min 6 chars)</label>
+              <input
+                type="password"
+                value={pwdForm.next}
+                onChange={(e) => setPwdForm({ ...pwdForm, next: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Confirm New Password</label>
+              <input
+                type="password"
+                value={pwdForm.confirm}
+                onChange={(e) => setPwdForm({ ...pwdForm, confirm: e.target.value })}
+                required
+              />
+            </div>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "14px" }}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowPwdModal(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={pwdSaving}>
+                {pwdSaving ? "Saving..." : "Update Password"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
   </>
   );
 }

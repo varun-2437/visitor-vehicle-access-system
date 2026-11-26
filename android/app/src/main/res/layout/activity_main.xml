@@ -93,6 +93,25 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
+            <!-- Password Change Icon Button (All Roles) -->
+            <LinearLayout
+                android:id="@+id/btnTopPassword"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_top_pill_btn"
+                android:clickable="true"
+                android:contentDescription="Change Password"
+                android:focusable="true"
+                android:gravity="center">
+
+                <ImageView
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:contentDescription="Change Password"
+                    android:src="@drawable/ic_lock" />
+            </LinearLayout>
+
             <!-- Logout Pill Button -->
             <LinearLayout
                 android:id="@+id/btnTopLogout"

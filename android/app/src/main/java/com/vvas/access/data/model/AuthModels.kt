@@ -33,6 +33,11 @@ data class RejectUserRequest(
     @SerializedName("rejection_reason") val rejectionReason: String
 )
 
+data class ChangePasswordRequest(
+    @SerializedName("current_password") val currentPassword: String,
+    @SerializedName("new_password") val newPassword: String
+)
+
 data class TokenResponse(
     @SerializedName("access_token") val accessToken: String,
     @SerializedName("token_type") val tokenType: String

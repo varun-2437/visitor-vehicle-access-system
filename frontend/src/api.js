@@ -88,6 +88,13 @@ async function routeToSupabase(config) {
   if (url === "/api/auth/me" && method === "get") {
     return await callRpc("vvas_me", { p_user_id: userId });
   }
+  if (url === "/api/auth/change-password" && method === "put") {
+    return await callRpc("vvas_change_password", {
+      p_user_id: userId,
+      p_current_password: body.current_password || "",
+      p_new_password: body.new_password || "",
+    });
+  }
   if ((url === "/api/auth/signup" || url === "/api/auth/register") && method === "post") {
     return await callRpc("vvas_signup", {
       p_username: body.username,

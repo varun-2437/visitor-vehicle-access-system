@@ -6,9 +6,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.vvas.access.data.storage.SessionManager
 import com.vvas.access.databinding.FragmentAccountProfileBinding
 import com.vvas.access.ui.auth.LoginActivity
+import com.vvas.access.utils.PasswordChangeDialog
 
 class AccountProfileFragment : Fragment() {
 
@@ -34,6 +36,10 @@ class AccountProfileFragment : Fragment() {
         binding.tvProfileEmail.text = "Email: ${user?.email ?: "—"}"
         binding.tvProfileFlat.text = "Unit / Flat: ${user?.flatNumber?.takeIf { it.isNotBlank() } ?: "Campus Gate / Staff"}"
         binding.tvProfileEndpoint.text = "Connected Server: ${session.serverUrl}"
+
+        binding.btnProfileChangePassword.setOnClickListener {
+            PasswordChangeDialog.show(requireContext(), viewLifecycleOwner.lifecycleScope)
+        }
 
         binding.btnProfileLogout.setOnClickListener {
             session.clearSession()

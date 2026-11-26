@@ -79,10 +79,22 @@
                     android:textSize="12sp" />
 
                 <Button
-                    android:id="@+id/btnProfileLogout"
+                    android:id="@+id/btnProfileChangePassword"
                     android:layout_width="match_parent"
                     android:layout_height="44dp"
                     android:layout_marginTop="18dp"
+                    android:backgroundTint="#1E293B"
+                    android:text="Change Password"
+                    android:textColor="@color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="10dp" />
+
+                <Button
+                    android:id="@+id/btnProfileLogout"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="8dp"
                     android:backgroundTint="@color/primary_crimson"
                     android:text="Sign Out"
                     android:textColor="@color/white"

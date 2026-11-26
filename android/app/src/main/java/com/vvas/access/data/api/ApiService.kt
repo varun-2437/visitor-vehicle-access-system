@@ -16,6 +16,11 @@ interface ApiService {
     @GET("api/auth/me")
     suspend fun getProfile(): User
 
+    @PUT("api/auth/change-password")
+    suspend fun changePassword(
+        @Body request: ChangePasswordRequest
+    ): okhttp3.ResponseBody
+
     // ── Passes (Resident & Admin) ──
     @GET("api/qr/my-passes")
     suspend fun getMyPasses(): List<VisitorPass>

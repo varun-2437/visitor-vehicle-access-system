@@ -22,6 +22,8 @@ import com.vvas.access.ui.resident.CreatePassBottomSheet
 import com.vvas.access.ui.resident.PassDetailDialog
 import com.vvas.access.ui.resident.ResidentDashboardFragment
 import com.vvas.access.utils.BackendStatusMonitor
+import com.vvas.access.utils.PasswordChangeDialog
+import androidx.lifecycle.lifecycleScope
 
 class MainActivity : AppCompatActivity() {
 
@@ -98,6 +100,10 @@ class MainActivity : AppCompatActivity() {
             }
         } else {
             binding.btnTopCamera.visibility = View.GONE
+        }
+
+        binding.btnTopPassword.setOnClickListener {
+            PasswordChangeDialog.show(this, lifecycleScope)
         }
 
         binding.btnTopLogout.setOnClickListener {

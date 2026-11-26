@@ -71,6 +71,14 @@ object ApiClient {
                                 put("p_user_id", currentUserId)
                             }
                         }
+                        path.endsWith("/api/auth/change-password") -> {
+                            val src = readBodyJson()
+                            "vvas_change_password" to JSONObject().apply {
+                                put("p_user_id", currentUserId)
+                                put("p_current_password", src.optString("current_password"))
+                                put("p_new_password", src.optString("new_password"))
+                            }
+                        }
                         path.endsWith("/api/qr/my-passes") || path.endsWith("/api/qr/today-passes") -> {
                             "vvas_api_get_passes" to JSONObject().apply {
                                 put("p_user_id", currentUserId)
