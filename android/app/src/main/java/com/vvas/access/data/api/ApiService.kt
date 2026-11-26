@@ -13,6 +13,11 @@ interface ApiService {
         @Body request: LoginRequest
     ): TokenResponse
 
+    @POST("api/auth/register")
+    suspend fun register(
+        @Body request: RegisterRequest
+    ): okhttp3.ResponseBody
+
     @GET("api/auth/me")
     suspend fun getProfile(): User
 

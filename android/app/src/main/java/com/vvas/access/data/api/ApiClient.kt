@@ -132,14 +132,15 @@ object ApiClient {
                         }
                         path.endsWith("/api/auth/register") -> {
                             val src = readBodyJson()
+                            val role = src.optString("role", "resident")
                             "vvas_signup" to JSONObject().apply {
                                 put("p_username", src.optString("username"))
                                 put("p_email", src.optString("email"))
                                 put("p_password", src.optString("password"))
                                 put("p_full_name", src.optString("full_name"))
-                                put("p_role", src.optString("role", "resident"))
+                                put("p_role", role)
                                 put("p_flat_number", src.optString("flat_number", ""))
-                                put("p_auto_approve", true)
+                                put("p_auto_approve", role != "guard")
                             }
                         }
                         path.endsWith("/api/admin/users") -> {

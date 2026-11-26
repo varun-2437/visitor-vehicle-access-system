@@ -48,6 +48,7 @@ class LoginActivity : AppCompatActivity() {
         setupServerConfig()
         setupQuickFillButtons()
         setupLoginButton()
+        setupCreateAccountButton()
         backendStatusMonitor = BackendStatusMonitor(binding.tvBackendStatus)
         com.vvas.access.utils.AnimationUtils.animateEntrance(binding.root, delayMs = 30L, durationMs = 360L)
         com.vvas.access.utils.AnimationUtils.addPressScale(binding.btnSignIn)
@@ -164,6 +165,122 @@ class LoginActivity : AppCompatActivity() {
                 binding.btnSignIn.isEnabled = true
                 binding.progressBar.visibility = View.GONE
             }
+        }
+    }
+
+    private fun setupCreateAccountButton() {
+        com.vvas.access.utils.AnimationUtils.addPressScale(binding.btnCreateAccount)
+        binding.btnCreateAccount.setOnClickListener {
+            val container = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(56, 32, 56, 12)
+            }
+
+            val etFullName = android.widget.EditText(this).apply {
+                hint = "Full Name *"
+                inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+            }
+            val etUsername = android.widget.EditText(this).apply {
+                hint = "Username *"
+                inputType = android.text.InputType.TYPE_CLASS_TEXT
+            }
+            val etEmail = android.widget.EditText(this).apply {
+                hint = "Email *"
+                inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            }
+            val etPassword = android.widget.EditText(this).apply {
+                hint = "Password (min 6 chars) *"
+                inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
+            val etFlat = android.widget.EditText(this).apply {
+                hint = "Flat / Unit Number (e.g. A-204)"
+                inputType = android.text.InputType.TYPE_CLASS_TEXT
+            }
+
+            val roleLabel = android.widget.TextView(this).apply {
+                text = "Account Role:"
+                textSize = 13f
+                setPadding(0, 16, 0, 4)
+            }
+            val rgRole = android.widget.RadioGroup(this).apply {
+                orientation = android.widget.RadioGroup.VERTICAL
+            }
+            val rbResident = android.widget.RadioButton(this).apply {
+                text = "Resident (Instant Access)"
+                isChecked = true
+            }
+            val rbGuard = android.widget.RadioButton(this).apply {
+                text = "Guard (Requires Admin Approval)"
+            }
+            rgRole.addView(rbResident)
+            rgRole.addView(rbGuard)
+
+            rgRole.setOnCheckedChangeListener { _, checkedId ->
+                etFlat.visibility = if (checkedId == rbGuard.id) View.GONE else View.VISIBLE
+            }
+
+            container.addView(etFullName)
+            container.addView(etUsername)
+            container.addView(etEmail)
+            container.addView(etPassword)
+            container.addView(roleLabel)
+            container.addView(rgRole)
+            container.addView(etFlat)
+
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Create New Account")
+                .setView(container)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Create Account") { _, _ ->
+                    val fullName = etFullName.text.toString().trim()
+                    val username = etUsername.text.toString().trim()
+                    val email = etEmail.text.toString().trim()
+                    val password = etPassword.text.toString()
+                    val role = if (rbGuard.isChecked) "guard" else "resident"
+                    val flat = etFlat.text.toString().trim().ifEmpty { null }
+
+                    if (fullName.isEmpty() || username.isEmpty() || email.isEmpty() || password.length < 6) {
+                        Toast.makeText(
+                            this,
+                            "Please fill all required fields (password min 6 chars)",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@setPositiveButton
+                    }
+
+                    lifecycleScope.launch {
+                        try {
+                            ApiClient.getService(this@LoginActivity).register(
+                                com.vvas.access.data.model.RegisterRequest(
+                                    username = username,
+                                    email = email,
+                                    password = password,
+                                    fullName = fullName,
+                                    role = role,
+                                    flatNumber = if (role == "resident") flat else null
+                                )
+                            )
+                            binding.etUsername.setText(username)
+                            val msg = if (role == "guard") {
+                                "Guard account submitted! An Admin must approve your account before you can sign in."
+                            } else {
+                                "Resident account created! You can now sign in."
+                            }
+                            com.google.android.material.dialog.MaterialAlertDialogBuilder(this@LoginActivity)
+                                .setTitle("Account Created")
+                                .setMessage(msg)
+                                .setPositiveButton("OK", null)
+                                .show()
+                        } catch (e: Exception) {
+                            Toast.makeText(
+                                this@LoginActivity,
+                                "Signup failed: ${e.localizedMessage ?: "Check details"}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+                .show()
         }
     }
 

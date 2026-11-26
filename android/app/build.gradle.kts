@@ -12,8 +12,8 @@ android {
         applicationId = "com.vvas.access"
         minSdk = 24
         targetSdk = 37
-        versionCode = 14
-        versionName = "1.13.0"
+        versionCode = 15
+        versionName = "1.14.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
