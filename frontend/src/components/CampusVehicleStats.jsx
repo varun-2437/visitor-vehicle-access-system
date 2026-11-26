@@ -6,11 +6,13 @@ import "./CampusVehicleStats.css";
 export default function CampusVehicleStats({
   refreshTrigger = 0,
   onSelectInside,
+  onSelectNotInside,
   onSelectVisited,
   onSelectPasses,
 }) {
   const [stats, setStats] = useState({
     vehicles_inside: 0,
+    not_inside_passes: 0,
     total_visited: 0,
     total_passes: 0,
   });
@@ -32,6 +34,7 @@ export default function CampusVehicleStats({
       if (res.data) {
         setStats({
           vehicles_inside: res.data.vehicles_inside ?? 0,
+          not_inside_passes: res.data.not_inside_passes ?? 0,
           total_visited: res.data.total_visited ?? 0,
           total_passes: res.data.total_passes ?? 0,
         });
@@ -142,6 +145,34 @@ export default function CampusVehicleStats({
           )}
         </div>
         <div className="campus-stat-icon-box icon-box-passes" title="Total passes generated today">
+          <QrTicketIcon size={26} />
+        </div>
+      </div>
+      {/* 4. Pre-Created Passes (Not Inside Yet) */}
+      <div
+        className={`campus-stat-card card-not-inside ${onSelectNotInside ? "is-clickable" : ""}`}
+        onClick={onSelectNotInside}
+        onKeyDown={(e) => handleKeyDown(e, onSelectNotInside)}
+        role={onSelectNotInside ? "button" : undefined}
+        tabIndex={onSelectNotInside ? 0 : undefined}
+        title={onSelectNotInside ? "Click to view pre-created passes awaiting entry" : undefined}
+      >
+        <div className="campus-stat-info">
+          <div className="stat-badge-row">
+            <span className="stat-badge stat-badge-not-inside">
+              Pre-Created
+            </span>
+          </div>
+          <div className="campus-stat-value">
+            {loading ? "…" : stats.not_inside_passes}
+          </div>
+          <div className="campus-stat-title">Not Inside (Awaiting)</div>
+          <div className="campus-stat-desc">Pre-created passes not entered yet</div>
+          {onSelectNotInside && (
+            <span className="stat-click-hint">View awaiting passes ➔</span>
+          )}
+        </div>
+        <div className="campus-stat-icon-box icon-box-not-inside" title="Pre-created passes not inside campus">
           <QrTicketIcon size={26} />
         </div>
       </div>

@@ -1,6 +1,6 @@
 .campus-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -74,6 +74,14 @@
   color: #818cf8;
 }
 
+.campus-stat-card.card-not-inside .stat-click-hint {
+  color: #d97706;
+}
+
+[data-theme="dark"] .campus-stat-card.card-not-inside .stat-click-hint {
+  color: #fbbf24;
+}
+
 .campus-stat-card:hover .stat-click-hint {
   transform: translateX(3px);
   opacity: 1;
@@ -89,6 +97,21 @@
 
 .campus-stat-card.card-passes {
   border-left: 4px solid #6366f1;
+}
+
+.campus-stat-card.card-not-inside {
+  border-left: 4px solid #f59e0b;
+}
+
+.stat-badge-not-inside {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.icon-box-not-inside {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
 }
 
 .campus-stat-info {

@@ -113,6 +113,11 @@ class GuardDashboardFragment : Fragment() {
             filterController.applyPreset(DatePreset.ALL, "in_campus")
             Toast.makeText(requireContext(), "Showing vehicles currently inside campus", Toast.LENGTH_SHORT).show()
         }
+        binding.cardGuardStatNotInside.setOnClickListener {
+            switchTab(false)
+            filterController.applyPreset(DatePreset.ALL, "not_inside")
+            Toast.makeText(requireContext(), "Showing pre-created passes not inside yet", Toast.LENGTH_SHORT).show()
+        }
         binding.cardGuardStatVisits.setOnClickListener {
             switchTab(true)
             filterController.applyLogPreset(DatePreset.TODAY, "entry")
@@ -157,6 +162,7 @@ class GuardDashboardFragment : Fragment() {
                     statsResult.await().onSuccess { stats ->
                         if (_binding != null) {
                             binding.tvGuardStatInsideCount.text = stats.vehiclesInside.toString()
+                            binding.tvGuardStatNotInsideCount.text = stats.notInsidePasses.toString()
                             binding.tvGuardStatVisitsCount.text = stats.totalVisited.toString()
                             binding.tvGuardStatPassesCount.text = stats.totalPasses.toString()
                         }

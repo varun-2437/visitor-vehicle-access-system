@@ -62,6 +62,11 @@ class AdminDashboardFragment : Fragment() {
             filterController.applyPreset(DatePreset.ALL, "in_campus")
             Toast.makeText(requireContext(), "Showing vehicles inside campus", Toast.LENGTH_SHORT).show()
         }
+        binding.cardStatNotInside.setOnClickListener {
+            switchTab(showLogs = false)
+            filterController.applyPreset(DatePreset.ALL, "not_inside")
+            Toast.makeText(requireContext(), "Showing pre-created passes not inside yet", Toast.LENGTH_SHORT).show()
+        }
         binding.cardStatVisits.setOnClickListener {
             switchTab(showLogs = true)
             filterController.applyLogPreset(DatePreset.TODAY, "entry")
@@ -157,6 +162,7 @@ class AdminDashboardFragment : Fragment() {
                     statsResult.await().onSuccess { stats ->
                         if (_binding != null) {
                             binding.tvStatInsideCount.text = stats.vehiclesInside.toString()
+                            binding.tvStatNotInsideCount.text = stats.notInsidePasses.toString()
                             binding.tvStatVisitsCount.text = stats.totalVisited.toString()
                             binding.tvStatPassesCount.text = stats.totalPasses.toString()
                         }

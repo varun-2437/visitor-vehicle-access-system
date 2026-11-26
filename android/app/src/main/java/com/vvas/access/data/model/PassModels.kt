@@ -61,6 +61,7 @@ data class CreateApiKeyResponse(
 
 data class CampusStats(
     @SerializedName("vehicles_inside") val vehiclesInside: Int = 0,
+    @SerializedName("not_inside_passes") val notInsidePasses: Int = 0,
     @SerializedName("total_visited") val totalVisited: Int = 0,
     @SerializedName("total_passes") val totalPasses: Int = 0,
     val date: String? = null

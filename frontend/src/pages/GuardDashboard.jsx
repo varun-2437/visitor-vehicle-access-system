@@ -452,6 +452,15 @@ export default function GuardDashboard() {
     }, 100);
   };
 
+  const handleSelectNotInsidePasses = () => {
+    setActiveTab("passes");
+    setStatusFilter("not_inside");
+    applyDatePreset("all");
+    setTimeout(() => {
+      document.querySelector(".panel")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
   const filteredPasses = sortData(todayPasses.filter((p) => {
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
     if (!searchQuery.trim()) return true;
@@ -524,6 +533,7 @@ export default function GuardDashboard() {
         <CampusVehicleStats
           refreshTrigger={todayLogs.length + todayPasses.length}
           onSelectInside={handleSelectInsideVehicles}
+          onSelectNotInside={handleSelectNotInsidePasses}
           onSelectVisited={handleSelectVisitedVehicles}
           onSelectPasses={handleSelectTodayPasses}
         />
