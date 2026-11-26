@@ -46,14 +46,17 @@ class BackendStatusMonitor(
         val isSupabase = baseUrl.contains("supabase.co")
         executor.execute {
             val isActive = try {
-                val targetUrl = if (isSupabase) "$baseUrl/rest/v1/" else "$baseUrl/"
+                val targetUrl = if (isSupabase) "$baseUrl/rest/v1/rpc/vvas_get_stats" else "$baseUrl/"
                 val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
+                    requestMethod = if (isSupabase) "POST" else "GET"
                     connectTimeout = 3000
                     readTimeout = 3000
                     if (isSupabase) {
+                        doOutput = true
                         setRequestProperty("apikey", SupabaseConfig.SUPABASE_ANON_KEY)
                         setRequestProperty("Authorization", "Bearer ${SupabaseConfig.SUPABASE_ANON_KEY}")
+                        setRequestProperty("Content-Type", "application/json")
+                        outputStream.use { it.write("{}".toByteArray()) }
                     }
                 }
                 val code = conn.responseCode
