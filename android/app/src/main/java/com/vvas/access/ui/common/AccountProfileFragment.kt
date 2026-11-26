@@ -35,7 +35,9 @@ class AccountProfileFragment : Fragment() {
         binding.tvProfileUsername.text = "@${user?.username ?: "—"} • ${user?.role?.uppercase() ?: "USER"}"
         binding.tvProfileEmail.text = "Email: ${user?.email ?: "—"}"
         binding.tvProfileFlat.text = "Unit / Flat: ${user?.flatNumber?.takeIf { it.isNotBlank() } ?: "Campus Gate / Staff"}"
-        binding.tvProfileEndpoint.text = "Connected Server: ${session.serverUrl}"
+        val url = session.serverUrl
+        val halfLen = (url.length / 2).coerceAtLeast(8)
+        binding.tvProfileEndpoint.text = "Connected Server: ${url.take(halfLen)}••••"
 
         binding.btnProfileChangePassword.setOnClickListener {
             PasswordChangeDialog.show(requireContext(), viewLifecycleOwner.lifecycleScope)

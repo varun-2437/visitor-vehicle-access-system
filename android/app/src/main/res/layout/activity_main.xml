@@ -63,15 +63,15 @@
             <!-- Live ANPR Camera Feed Shortcut (Guard & Admin only) -->
             <LinearLayout
                 android:id="@+id/btnTopCamera"
-                android:layout_width="wrap_content"
+                android:layout_width="32dp"
                 android:layout_height="32dp"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="6dp"
                 android:background="@drawable/bg_top_pill_btn"
                 android:clickable="true"
+                android:contentDescription="Camera"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:paddingHorizontal="10dp"
                 android:visibility="gone">
 
                 <ImageView
@@ -85,12 +85,8 @@
                     android:id="@+id/tvTopCameraLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:singleLine="true"
-                    android:text="Cam"
-                    android:textColor="@color/white"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
+                    android:visibility="gone"
+                    android:text="Cam" />
             </LinearLayout>
 
             <!-- Password Change Icon Button (All Roles) -->
@@ -112,33 +108,23 @@
                     android:src="@drawable/ic_lock" />
             </LinearLayout>
 
-            <!-- Logout Pill Button -->
+            <!-- Logout Icon Button -->
             <LinearLayout
                 android:id="@+id/btnTopLogout"
-                android:layout_width="wrap_content"
+                android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:background="@drawable/bg_top_pill_btn"
                 android:clickable="true"
+                android:contentDescription="@string/logout_btn"
                 android:focusable="true"
                 android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp">
+                android:orientation="horizontal">
 
                 <ImageView
                     android:layout_width="15dp"
                     android:layout_height="15dp"
                     android:contentDescription="Logout"
                     android:src="@drawable/ic_logout" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="5dp"
-                    android:singleLine="true"
-                    android:text="@string/logout_btn"
-                    android:textColor="@color/white"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 

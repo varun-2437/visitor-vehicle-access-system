@@ -262,7 +262,7 @@
                     android:layout_gravity="center"
                     android:clickable="true"
                     android:focusable="true"
-                    android:text="⚙️ Configure API Server Address"
+                    android:text="Configure Server Address"
                     android:textColor="@color/primary_crimson"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -281,7 +281,7 @@
                         android:layout_height="44dp"
                         android:background="@drawable/bg_input_field"
                         android:hint="@string/server_url_hint"
-                        android:inputType="textUri"
+                        android:inputType="textPassword"
                         android:paddingHorizontal="12dp"
                         android:textColor="@color/text_primary"
                         android:textColorHint="@color/text_muted"
