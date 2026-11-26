@@ -49,6 +49,8 @@ class LoginActivity : AppCompatActivity() {
         setupQuickFillButtons()
         setupLoginButton()
         backendStatusMonitor = BackendStatusMonitor(binding.tvBackendStatus)
+        com.vvas.access.utils.AnimationUtils.animateEntrance(binding.root, delayMs = 30L, durationMs = 360L)
+        com.vvas.access.utils.AnimationUtils.addPressScale(binding.btnSignIn)
     }
 
     override fun onResume() {
@@ -155,6 +157,7 @@ class LoginActivity : AppCompatActivity() {
 
                 navigateToMain()
             } catch (e: Exception) {
+                com.vvas.access.utils.AnimationUtils.shakeView(binding.btnSignIn)
                 val errMsg = e.localizedMessage ?: "Login failed. Check server IP and credentials."
                 Toast.makeText(this@LoginActivity, "Login error: $errMsg", Toast.LENGTH_LONG).show()
             } finally {
@@ -168,6 +171,8 @@ class LoginActivity : AppCompatActivity() {
         val intent = Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
+        @Suppress("DEPRECATION")
+        overridePendingTransition(com.vvas.access.R.anim.fade_slide_up, com.vvas.access.R.anim.fade_out)
         finish()
     }
 }
